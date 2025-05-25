@@ -13,7 +13,7 @@ const verificarYRenovarToken = require('./middlewares/authMiddleware');
 const medicoRoutes = require('./routes/medicoRoutes');
 const consultaRoutes = require('./routes/consultaRoutes');
 const citaRoutes = require('./routes/citaRoutes');
-
+const signosRoutes = require('./routes/signosRoutes');
 
 
 // instancia de Express
@@ -40,6 +40,7 @@ app.use('/api/pacientes',verificarYRenovarToken, pacienteRoutes);
 app.use('/api/medicos', medicoRoutes);
 app.use('/api/consultas', consultaRoutes);
 app.use('/api/citas', citaRoutes);
+app.use('/api/signos-vitales', signosRoutes);
 
 
 
