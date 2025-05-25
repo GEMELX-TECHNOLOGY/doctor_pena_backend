@@ -12,6 +12,8 @@ const pacienteRoutes = require('./routes/pacienteRoutes');
 const verificarYRenovarToken = require('./middlewares/authMiddleware');
 const medicoRoutes = require('./routes/medicoRoutes');
 const consultaRoutes = require('./routes/consultaRoutes');
+const citaRoutes = require('./routes/citaRoutes');
+
 
 
 // instancia de Express
@@ -37,6 +39,7 @@ app.use('/api/auth',authRoutes);
 app.use('/api/pacientes',verificarYRenovarToken, pacienteRoutes);
 app.use('/api/medicos', medicoRoutes);
 app.use('/api/consultas', consultaRoutes);
+app.use('/api/citas', citaRoutes);
 
 
 
