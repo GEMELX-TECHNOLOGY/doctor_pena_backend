@@ -16,6 +16,8 @@ const citaRoutes = require('./routes/citaRoutes');
 const signosRoutes = require('./routes/signosRoutes');
 const recetaRoutes = require('./routes/recetaRoutes');
 const vacunaRoutes = require('./routes/vacunaRoutes');
+const antecedenteRoutes = require('./routes/antecedenteRoutes');
+
 
 
 // instancia de Express
@@ -45,6 +47,7 @@ app.use('/api/citas', citaRoutes);
 app.use('/api/signos-vitales', signosRoutes);
 app.use('/api/recetas', recetaRoutes);
 app.use('/api/vacunas', vacunaRoutes);
+app.use('/api/antecedentes', antecedenteRoutes);
 
 
 
