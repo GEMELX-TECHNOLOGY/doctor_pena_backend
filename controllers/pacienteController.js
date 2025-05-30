@@ -1,6 +1,6 @@
 
 const { query } = require('../config/db.sql');
-const { generarCustomId, calcularEdad } = require('../utils/helpers');
+const { generarCustomId, calcularEdad,detectarCambiosPaciente } = require('../utils/helpers');
 
 const gruposValidos = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -180,10 +180,22 @@ exports.actualizar = async (req, res) => {
   try {
     const { id } = req.params;
     const campos = req.body;
+    const usuarioModificador = req.user.userId;
 
-    // Validación si se está intentando cambiar grupo sanguíneo
+
     if (campos.grupo_sanguineo && !gruposValidos.includes(campos.grupo_sanguineo)) {
       return res.status(400).json({ error: 'Grupo sanguíneo inválido' });
+    }
+
+    const [original] = await query('SELECT * FROM Pacientes WHERE id = ?', [id]);
+    if (original.length === 0) {
+      return res.status(404).json({ error: 'Paciente no encontrado' });
+    }
+
+    const cambios = detectarCambiosPaciente(original[0], campos);
+
+    if (cambios.length === 0) {
+      return res.json({ success: true, mensaje: 'No hubo cambios en los datos del paciente' });
     }
 
     const camposSet = Object.keys(campos).map(key => `${key} = ?`).join(', ');
@@ -191,7 +203,27 @@ exports.actualizar = async (req, res) => {
 
     await query(`UPDATE Pacientes SET ${camposSet} WHERE id = ?`, [...valores, id]);
 
-    res.json({ success: true, mensaje: 'Paciente actualizado correctamente' });
+    for (const cambio of cambios) {
+      await query(
+        `INSERT INTO HistorialCambiosPacientes
+         (paciente_id, campo_modificado, valor_anterior, valor_nuevo, modificado_por)
+         VALUES (?, ?, ?, ?, ?)`,
+        [
+          id,
+          cambio.campo,
+          String(cambio.anterior ?? ''),
+          String(cambio.nuevo),
+          usuarioModificador
+        ]
+      );
+    }
+
+    res.json({
+      success: true,
+      mensaje: 'Paciente actualizado correctamente',
+      cambios
+    });
+
   } catch (error) {
     console.error('Error al actualizar paciente:', error);
     res.status(500).json({ error: 'Error al actualizar paciente' });
@@ -209,3 +241,4 @@ exports.eliminar = async (req, res) => {
     res.status(500).json({ error: 'Error al eliminar paciente' });
   }
 };
+

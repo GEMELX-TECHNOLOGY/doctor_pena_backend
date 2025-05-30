@@ -1,7 +1,9 @@
-
 const express = require('express');
 const router = express.Router();
 const pacienteController = require('../controllers/pacienteController');
+const verificarYRenovarToken = require('../middlewares/authMiddleware');
+
+router.use(verificarYRenovarToken);
 
 // Registrar paciente
 router.post('/registrar', pacienteController.registrarPacienteWeb);

@@ -28,3 +28,24 @@ exports.calcularEdad = (fechaNacimiento) => {
     if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) edad--;
     return edad;
 };
+// HISTORIALCAMBIOSPACIENTE
+exports.detectarCambiosPaciente = (original, actualizado) => {
+  const cambios = [];
+
+  for (const campo in actualizado) {
+    const nuevoValor = actualizado[campo];
+    const valorOriginal = original[campo];
+
+    // Comparar como strings para evitar diferencias de tipo (ej: 74.5 vs "74.50")
+    if (nuevoValor != null && String(nuevoValor) !== String(valorOriginal)) {
+      cambios.push({
+        campo,
+        anterior: valorOriginal,
+        nuevo: nuevoValor
+      });
+    }
+  }
+
+  return cambios;
+};
+

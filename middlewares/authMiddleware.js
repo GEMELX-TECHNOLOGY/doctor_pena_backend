@@ -12,9 +12,11 @@ const verificarYRenovarToken = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    // ✅ Asignar decoded al request para usar en controladores
+    req.user = decoded;
+
     try {
-      const result =await query('UPDATE Usuarios SET ultimo_acceso = NOW() WHERE id = ?', [decoded.userId]);
-      console.log('Update último_acceso resultado:', result);
+      await query('UPDATE Usuarios SET ultimo_acceso = NOW() WHERE id = ?', [decoded.userId]);
     } catch (err) {
       console.error('Error al actualizar último_acceso:', err);
     }
