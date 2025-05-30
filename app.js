@@ -15,6 +15,8 @@ const consultaRoutes = require('./routes/consultaRoutes');
 const citaRoutes = require('./routes/citaRoutes');
 const signosRoutes = require('./routes/signosRoutes');
 const recetaRoutes = require('./routes/recetaRoutes');
+const vacunaRoutes = require('./routes/vacunaRoutes');
+
 
 // instancia de Express
 const app = express();
@@ -42,6 +44,7 @@ app.use('/api/consultas', consultaRoutes);
 app.use('/api/citas', citaRoutes);
 app.use('/api/signos-vitales', signosRoutes);
 app.use('/api/recetas', recetaRoutes);
+app.use('/api/vacunas', vacunaRoutes);
 
 
 
