@@ -45,6 +45,7 @@ exports.obtenerDatosRecetaParaImpresion = async (req, res) => {
   try {
     const consulta_id = req.params.id;
 
+    // Consulta, paciente, médico
     const [consulta] = await query(
       `SELECT c.*, p.nombre AS nombre_paciente, p.apellidos AS apellidos_paciente, 
               p.genero, p.fecha_nacimiento, 
@@ -61,20 +62,36 @@ exports.obtenerDatosRecetaParaImpresion = async (req, res) => {
       return res.status(404).json({ error: 'Consulta no encontrada' });
     }
 
+    //  Signos vitales
     const [signos] = await query('SELECT * FROM SignosVitales WHERE consulta_id = ?', [consulta_id]);
-    const [receta] = await query('SELECT * FROM Recetas WHERE consulta_id = ?', [consulta_id]);
 
+    // Receta
+    const [receta] = await query('SELECT * FROM Recetas WHERE consulta_id = ?', [consulta_id]);
     if (receta.length === 0) {
       return res.status(404).json({ error: 'Receta no encontrada para esta consulta' });
     }
 
+    const receta_id = receta[0].id;
+
+    // Medicamentos recetados
+    const [medicamentos] = await query(
+      `SELECT mr.*, p.nombre AS nombre_medicamento, p.fórmula_sal
+       FROM MedicamentosRecetados mr
+       INNER JOIN Productos p ON mr.medicamento_id = p.id
+       WHERE mr.receta_id = ?`,
+      [receta_id]
+    );
+
+    // 5. Preparar datos finales
     const datos = {
       consulta: consulta[0],
       signos_vitales: signos.length > 0 ? signos[0] : null,
-      receta: receta[0]
+      receta: receta[0],
+      medicamentos
     };
 
     res.json({ success: true, datos });
+
   } catch (error) {
     console.error('Error al generar datos de impresión:', error);
     res.status(500).json({ error: 'Error al generar los datos de la receta' });

@@ -14,4 +14,5 @@ router.get('/obtener/consulta/:id', recetaController.verRecetaPorConsulta);
 // Obtener receta completa para impresión doc y paciente
 router.get('/obtener/consulta/:id/imprimir', recetaController.obtenerDatosRecetaParaImpresion);
 
+
 module.exports = router;
