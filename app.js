@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const { generarAlertasAutomaticas } = require('./utils/alertasAuto');
+generarAlertasAutomaticas();
 
 // BD
 const { connectMySQL } = require('./config/db.sql'); // Conexión a MySQL
@@ -21,6 +23,8 @@ const historialRoutes = require('./routes/historialRoutes');
 const productosRoutes = require('./routes/productosRoutes');
 const medRecetadosRoutes = require('./routes/medRecetadosRoutes');
 const documentosRoutes = require('./routes/documentosRoutes');
+const alertasRoutes = require('./routes/alertasRoutes');
+
 
 
 
@@ -57,8 +61,7 @@ app.use('/api/historial', historialRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/med-recetados', medRecetadosRoutes);
 app.use('/api/documentos', documentosRoutes);
-
-
+app.use('/api/alertas', alertasRoutes);
 
 
 app.use((err, req, res, next) => {
@@ -75,3 +78,4 @@ app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
     console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
 })
+const alertasJob = require('./jobs/alertasJob');
