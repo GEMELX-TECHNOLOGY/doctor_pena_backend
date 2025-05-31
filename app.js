@@ -20,7 +20,7 @@ const antecedenteRoutes = require('./routes/antecedenteRoutes');
 const historialRoutes = require('./routes/historialRoutes');
 const productosRoutes = require('./routes/productosRoutes');
 const medRecetadosRoutes = require('./routes/medRecetadosRoutes');
-
+const documentosRoutes = require('./routes/documentosRoutes');
 
 
 
@@ -56,6 +56,7 @@ app.use('/api/antecedentes', antecedenteRoutes);
 app.use('/api/historial', historialRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/med-recetados', medRecetadosRoutes);
+app.use('/api/documentos', documentosRoutes);
 
 
 
