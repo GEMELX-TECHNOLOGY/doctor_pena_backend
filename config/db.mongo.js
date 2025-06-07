@@ -1,8 +1,15 @@
 const mongoose = require('mongoose');
 
 const connectMongoDB = async () => {
+    const uri = process.env.MONGO_URI;
+
+    if (!uri || uri.includes('localhost')) {
+        console.log('🔁 Saltando conexión a MongoDB: URI no válida para producción');
+        return;
+    }
+
     try {
-        await mongoose.connect(process.env.MONGO_URI, {
+        await mongoose.connect(uri, {
             useNewUrlParser: true,
             useUnifiedTopology: true
         });

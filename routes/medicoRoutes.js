@@ -13,3 +13,4 @@ router.put('/update/:id', medicoController.actualizarMedico);
 router.delete('/delete/:id', medicoController.eliminarMedico);
 
 module.exports = router;
+    
