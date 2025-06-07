@@ -47,16 +47,21 @@ exports.obtenerDatosRecetaParaImpresion = async (req, res) => {
 
     // Consulta, paciente, médico
     const [consulta] = await query(
-      `SELECT c.*, p.nombre AS nombre_paciente, p.apellidos AS apellidos_paciente, 
-              p.genero, p.fecha_nacimiento, 
-              m.nombre AS nombre_doctor, m.apellido AS apellido_doctor, 
-              m.cedula, m.consultorio, m.horario_atencion
-       FROM Consultas c
-       INNER JOIN Pacientes p ON c.paciente_id = p.id
-       INNER JOIN Medicos m ON c.médico_id = m.id
-       WHERE c.id = ?`,
-      [consulta_id]
-    );
+  `SELECT c.*, 
+          p.matricula AS matricula,
+          p.nombre AS nombre_paciente, p.apellidos AS apellidos_paciente, 
+          p.genero, p.fecha_nacimiento
+   FROM Consultas c
+   INNER JOIN Pacientes p ON c.paciente_id = p.id
+   WHERE c.id = ?`,
+  [consulta_id]
+  );
+
+ if (consulta.length === 0) {
+  return res.status(404).json({ error: 'Consulta no encontrada' });
+ }
+
+
 
     if (consulta.length === 0) {
       return res.status(404).json({ error: 'Consulta no encontrada' });
@@ -81,15 +86,36 @@ exports.obtenerDatosRecetaParaImpresion = async (req, res) => {
        WHERE mr.receta_id = ?`,
       [receta_id]
     );
+    //Ventas
+    // Productos vendidos relacionados a la receta
+    const [ventas] = await query(
+     `SELECT v.*, p.nombre AS nombre_producto, p.fórmula_sal 
+      FROM Ventas v
+      INNER JOIN Productos p ON v.producto_id = p.id
+      WHERE v.receta_id = ?`,
+     [receta_id] 
+    );
 
-    // 5. Preparar datos finales
+    // Preparar datos finales
+
+    const doctorFijo = {
+      nombre_doctor: "JOSE TRINIDAD",
+      apellido_doctor: "PEÑA GARCIA",
+      cedula: "7065658",
+      consultorio: "LAS PALMAS 218 FRACC LOS ALAMOS DURANGO DURANGO CP: 34146",
+      horario_atencion: "Lunes a Sabado 9am-8pm"
+    };
+
     const datos = {
       consulta: consulta[0],
       signos_vitales: signos.length > 0 ? signos[0] : null,
       receta: receta[0],
-      medicamentos
-    };
+      medicamentos,
+      medico: doctorFijo,
+      productos_vendidos: ventas
 
+    };
+    
     res.json({ success: true, datos });
 
   } catch (error) {

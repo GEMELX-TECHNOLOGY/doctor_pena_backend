@@ -29,7 +29,7 @@ exports.registrarPacienteWeb = async (req, res) => {
     }
 
     const edad = calcularEdad(fecha_nacimiento);
-    const customId = await generarCustomId();
+    const matricula = await generarCustomId();
 
     // Clasificar tipo de paciente
     let tipo_paciente = 'adulto';
@@ -41,10 +41,10 @@ exports.registrarPacienteWeb = async (req, res) => {
     // Insertar en Pacientes
     const [resultado] = await query(
       `INSERT INTO Pacientes 
-       (custom_id, nombre, apellidos, genero, fecha_nacimiento, grupo_sanguineo, alergias, enfermedades_cronicas, estatura_promedio, peso_promedio, tipo_paciente, foto) 
+       (matricula, nombre, apellidos, genero, fecha_nacimiento, grupo_sanguineo, alergias, enfermedades_cronicas, estatura_promedio, peso_promedio, tipo_paciente, foto) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        customId,
+        matricula,
         nombre,
         apellidos,
         genero,
@@ -137,7 +137,7 @@ exports.registrarPacienteWeb = async (req, res) => {
     res.status(201).json({
       success: true,
       mensaje: 'Paciente registrado correctamente',
-      custom_id: customId,
+      matricula: matricula,
       edad,
       tipo_paciente
     });

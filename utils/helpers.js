@@ -12,11 +12,20 @@ exports.generarTokenJWT = (payload, secret, expiresIn) => {
     return jwt.sign(payload, secret, { expiresIn });
 };
 
-// Generar ID único (CLI-001)
+// Generar ID único (PAC-39892)
 exports.generarCustomId = async () => {
-    const [result] = await query('SELECT MAX(id) AS maxId FROM Pacientes');
-    const nextId = (result[0].maxId || 0) + 1;
-    return `CLI-${String(nextId).padStart(3, '0')}`;
+  let customId = '';
+  let existe = true;
+
+  do {
+    const numero = Math.floor(10000 + Math.random() * 90000);
+    customId = `PAC${numero}`;
+
+    const [rows] = await query('SELECT id FROM Pacientes WHERE matricula = ?', [customId]);
+    existe = rows.length > 0;
+  } while (existe);
+
+  return customId;
 };
 
 // Calcular edad

@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { generarAlertasAutomaticas } = require('./utils/alertasAuto');
 generarAlertasAutomaticas();
-
+const alertasJob = require('./jobs/alertasJob');
 // BD
 const { connectMySQL } = require('./config/db.sql'); // Conexión a MySQL
 const { connectMongoDB } = require('./config/db.mongo'); // Conexión a MongoDB
@@ -24,6 +24,8 @@ const productosRoutes = require('./routes/productosRoutes');
 const medRecetadosRoutes = require('./routes/medRecetadosRoutes');
 const documentosRoutes = require('./routes/documentosRoutes');
 const alertasRoutes = require('./routes/alertasRoutes');
+const ventaRoutes = require('./routes/ventaRoutes');
+
 
 
 
@@ -62,6 +64,8 @@ app.use('/api/productos', productosRoutes);
 app.use('/api/med-recetados', medRecetadosRoutes);
 app.use('/api/documentos', documentosRoutes);
 app.use('/api/alertas', alertasRoutes);
+app.use('/api/ventas', ventaRoutes);
+
 
 
 app.use((err, req, res, next) => {
@@ -78,4 +82,4 @@ app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
     console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
 })
-const alertasJob = require('./jobs/alertasJob');
+

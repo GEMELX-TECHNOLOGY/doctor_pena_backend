@@ -127,8 +127,6 @@ exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        console.log('Login recibido:', { email, password });
-
         const [users] = await query(
             'SELECT * FROM Usuarios WHERE email = ?',
             [email]
@@ -146,27 +144,26 @@ exports.login = async (req, res) => {
             return res.status(401).json({ error: 'Credenciales inválidas' });
         }
 
+        //  ACTUALIZAR ultimo acceso
+        await query('UPDATE Usuarios SET ultimo_acceso = NOW() WHERE id = ?', [user.id]);
+
         const token = jwt.sign(
             { userId: user.id, rol: user.rol },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
-        res.json({
-            success: true,
-            token,
-            userId: user.id,
-            rol: user.rol
-        });
+        res.json({ token });
 
     } catch (error) {
         console.error('Error en login:', error);
         res.status(500).json({
-            error: 'Error interno del servidor al iniciar sesión',
-            detalle: error.message
+            error: 'Error interno del servidor al iniciar sesión'
         });
     }
 };
+
+
 
 
 // Función para solicitar recuperación de contraseña
@@ -196,7 +193,7 @@ exports.forgotPassword = async (req, res) => {
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     await sendPasswordResetEmail(email, resetLink);
 
-    console.log(`✅ Token enviado a ${email}: ${resetToken}`);
+    console.log(` Token enviado a ${email}: ${resetToken}`);
 
     res.json({
       success: true,
@@ -283,4 +280,96 @@ exports.refreshToken = async (req, res) => {
     console.error('Error en refreshToken:', error);
    res.status(401).json({ error: 'Token inválido o expirado' });
    }
+};
+exports.actualizarCredencialesAdmin = async (req, res) => {
+  try {
+    const adminId = req.user?.userId;
+    const { email, nuevaContrasena } = req.body;
+
+    if (req.user?.rol !== 'admin') {
+      return res.status(403).json({ error: 'Solo el administrador puede actualizar sus credenciales' });
+    }
+
+    const updates = [];
+    const values = [];
+
+    if (email) {
+      updates.push('email = ?');
+      values.push(email);
+    }
+
+    if (nuevaContrasena) {
+      const hashed = await bcrypt.hash(nuevaContrasena, 10);
+      updates.push('contrasena_hash = ?');
+      values.push(hashed);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Nada que actualizar' });
+    }
+
+    values.push(adminId);
+
+    await query(`UPDATE Usuarios SET ${updates.join(', ')} WHERE id = ?`, values);
+
+    res.json({ success: true, mensaje: 'Credenciales actualizadas correctamente' });
+  } catch (err) {
+    console.error('Error actualizando credenciales del admin:', err);
+    res.status(500).json({ error: 'Error interno al actualizar' });
+  }
+};
+exports.registroPacienteApp = async (req, res) => {
+    try {
+        const { email, password, telefono, rol, matricula } = req.body;
+
+        if (rol !== 'paciente') {
+            return res.status(400).json({ error: 'Rol inválido para esta ruta. Solo se permite paciente.' });
+        }
+
+        if (!matricula) {
+            return res.status(400).json({ error: 'Matrícula requerida para el registro' });
+        }
+
+        // Verificar si la matrícula existe y no está vinculada aún
+        const [pacienteRows] = await query('SELECT * FROM Pacientes WHERE matricula = ?', [matricula]);
+        if (pacienteRows.length === 0) {
+            return res.status(404).json({ error: 'Matrícula no encontrada' });
+        }
+
+        const paciente = pacienteRows[0];
+        if (paciente.usuario_id) {
+            return res.status(400).json({ error: 'Esta matrícula ya está vinculada a un usuario' });
+        }
+
+        // Verificar si el email ya está registrado
+        const [usuariosExistentes] = await query('SELECT * FROM Usuarios WHERE email = ?', [email]);
+        if (usuariosExistentes.length > 0) {
+            return res.status(409).json({ error: 'El correo electrónico ya está registrado' });
+        }
+
+        // Hashear la contraseña
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Insertar en tabla Usuarios
+        const [usuarioResult] = await query(`
+            INSERT INTO Usuarios (rol, email, telefono, contrasena_hash, estado)
+            VALUES (?, ?, ?, ?, 'activo')
+        `, [rol, email, telefono, hashedPassword]);
+
+        const nuevoUsuarioId = usuarioResult.insertId;
+
+        // Vincular usuario con el paciente
+        await query('UPDATE Pacientes SET usuario_id = ? WHERE id = ?', [nuevoUsuarioId, paciente.id]);
+
+        res.status(201).json({
+            success: true,
+            mensaje: 'Registro exitoso',
+            usuario_id: nuevoUsuarioId,
+            paciente_id: paciente.id
+        });
+
+    } catch (error) {
+        console.error('Error en el registro de paciente:', error);
+        res.status(500).json({ error: 'Error interno del servidor', detalle: error.message });
+    }
 };

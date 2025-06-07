@@ -7,11 +7,8 @@ const wearableDataSchema = new mongoose.Schema({
   heartRate: { type: Number }, 
   bloodOxygen: { type: Number }, 
   temperature: { type: Number }, 
-  location: {
-    type: { type: String, default: 'Point' },
-    coordinates: { type: [Number] } // [longitud, latitud]
-  },
-  isEmergency: { type: Boolean, default: false } // alertas
+ 
+  isEmergency: { type: Boolean, default: false } // ESTADO
 });
 
 // Índice para búsquedas por paciente y fecha

@@ -7,10 +7,10 @@ router.use(verificarYRenovarToken);
 
 router.post('/register', citaController.crearCita);
 //solo doctor
-router.get('/medico/:id', citaController.verCitasPorMedico);
+
 //solo paciente
 router.get('/paciente/:id', citaController.verCitasPorPaciente);
-
+//solo el doctor puede actualizar
 router.put('/update/:id', citaController.actualizarCita);
 router.put('/update/:id/cancelar', citaController.cancelarCita);
 

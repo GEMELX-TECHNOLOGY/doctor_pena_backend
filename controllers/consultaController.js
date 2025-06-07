@@ -14,20 +14,17 @@ async function existeMedico(medico_id) {
 
 exports.crearConsulta = async (req, res) => {
   try {
-    const { paciente_id, medico_id, fecha, sintomas, diagnostico, tratamiento, notas_privadas } = req.body;
+    const { paciente_id, fecha, sintomas, diagnostico, tratamiento, notas_privadas, pagado = 0 } = req.body;
 
-    if (!(await existePaciente(paciente_id))) {
+    const [resPaciente] = await query('SELECT id FROM Pacientes WHERE id = ?', [paciente_id]);
+    if (resPaciente.length === 0) {
       return res.status(400).json({ error: 'Paciente no encontrado' });
     }
 
-    if (!(await existeMedico(medico_id))) {
-      return res.status(400).json({ error: 'Médico no encontrado' });
-    }
-
     await query(
-      `INSERT INTO Consultas (paciente_id, médico_id, fecha, síntomas, diagnóstico, tratamiento, notas_privadas)
+      `INSERT INTO Consultas (paciente_id, fecha, síntomas, diagnóstico, tratamiento, notas_privadas, pagado)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [paciente_id, medico_id, fecha, sintomas, diagnostico, tratamiento, notas_privadas]
+      [paciente_id, fecha, sintomas, diagnostico, tratamiento, notas_privadas, pagado]
     );
 
     res.status(201).json({ success: true, mensaje: 'Consulta registrada correctamente' });
@@ -36,6 +33,8 @@ exports.crearConsulta = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+
 
 exports.obtenerConsultas = async (req, res) => {
   try {
@@ -60,10 +59,12 @@ exports.obtenerConsultaPorId = async (req, res) => {
 
 exports.actualizarConsulta = async (req, res) => {
   try {
-    const { fecha, sintomas, diagnostico, tratamiento, notas_privadas } = req.body;
+    const { fecha, sintomas, diagnostico, tratamiento, notas_privadas,pagado } = req.body;
     const [result] = await query(
-      `UPDATE Consultas SET fecha = ?, síntomas = ?, diagnóstico = ?, tratamiento = ?, notas_privadas = ? WHERE id = ?`,
-      [fecha, sintomas, diagnostico, tratamiento, notas_privadas, req.params.id]
+     `UPDATE Consultas 
+     SET fecha = ?, síntomas = ?, diagnóstico = ?, tratamiento = ?, notas_privadas = ?, pagado = ?
+     WHERE id = ?`,
+     [fecha, sintomas, diagnostico, tratamiento, notas_privadas, pagado, req.params.id]
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Consulta no encontrada' });
     res.json({ success: true, mensaje: 'Consulta actualizada correctamente' });
@@ -100,3 +101,23 @@ exports.consultasPorPaciente = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener consultas del paciente' });
   }
 };
+exports.marcarComoPagada = async (req, res) => {
+  try {
+    const consultaId = req.params.id;
+
+    const [result] = await query(
+      `UPDATE Consultas SET pagado = 1 WHERE id = ?`,
+      [consultaId]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Consulta no encontrada' });
+    }
+
+    res.json({ success: true, mensaje: 'Consulta marcada como pagada' });
+  } catch (err) {
+    console.error('Error al marcar consulta como pagada:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+

@@ -6,10 +6,11 @@ const verificarYRenovarToken = require('../middlewares/authMiddleware');
 
 router.use(verificarYRenovarToken);
 
-// CRUD para el doctor web
+//  para el doctor web
 router.post('/register', consultaController.crearConsulta);
 router.get('/obtener', consultaController.obtenerConsultas);
 router.get('/obtener/:id', consultaController.obtenerConsultaPorId);
+router.put('/pagar/:id', consultaController.marcarComoPagada);
 
 
 // Para el paciente app movil

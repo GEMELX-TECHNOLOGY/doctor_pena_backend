@@ -8,5 +8,7 @@ router.use(verificarYRenovarToken);
 router.post('/subir', controller.subirDocumento);
 router.get('/paciente/:id', controller.obtenerPorPaciente);
 router.delete('/:id', controller.eliminarDocumento);
+router.get('/:id/ver', controller.verDocumentoYMarcarLeido);
+
 
 module.exports = router;
