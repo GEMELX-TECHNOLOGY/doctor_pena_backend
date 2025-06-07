@@ -293,10 +293,10 @@ exports.actualizarCredencialesAdmin = async (req, res) => {
     const updates = [];
     const values = [];
 
-    if (email) {
-      updates.push('email = ?');
-      values.push(email);
-    }
+    const emailNormalizado = email?.trim().toLowerCase();
+    updates.push('email = ?');
+    values.push(emailNormalizado);
+
 
     if (nuevaContrasena) {
       const hashed = await bcrypt.hash(nuevaContrasena, 10);
@@ -320,11 +320,9 @@ exports.actualizarCredencialesAdmin = async (req, res) => {
 };
 exports.registroPacienteApp = async (req, res) => {
     try {
-        const { email, password, telefono, rol, matricula } = req.body;
+        const { email, password, telefono, matricula } = req.body;
 
-        if (rol !== 'paciente') {
-            return res.status(400).json({ error: 'Rol inválido para esta ruta. Solo se permite paciente.' });
-        }
+        const rol = 'paciente'; // ← Fijamos el rol directamente
 
         if (!matricula) {
             return res.status(400).json({ error: 'Matrícula requerida para el registro' });
@@ -361,11 +359,19 @@ exports.registroPacienteApp = async (req, res) => {
         // Vincular usuario con el paciente
         await query('UPDATE Pacientes SET usuario_id = ? WHERE id = ?', [nuevoUsuarioId, paciente.id]);
 
+        // Generar token
+        const token = jwt.sign(
+            { userId: nuevoUsuarioId, rol },
+            process.env.JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
         res.status(201).json({
             success: true,
             mensaje: 'Registro exitoso',
             usuario_id: nuevoUsuarioId,
-            paciente_id: paciente.id
+            paciente_id: paciente.id,
+            token
         });
 
     } catch (error) {
