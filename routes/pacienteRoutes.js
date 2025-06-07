@@ -17,7 +17,6 @@ router.get('/obtener/:id', pacienteController.obtenerPorId);
 // Actualizar
 router.put('/update/:id', pacienteController.actualizar);
 
-// Eliminar
-router.delete('/delete/:id', pacienteController.eliminar);
+
 
 module.exports = router;
