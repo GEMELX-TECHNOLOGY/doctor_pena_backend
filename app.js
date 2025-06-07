@@ -25,6 +25,8 @@ const medRecetadosRoutes = require('./routes/medRecetadosRoutes');
 const documentosRoutes = require('./routes/documentosRoutes');
 const alertasRoutes = require('./routes/alertasRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
+const wearableRoutes = require('./routes/wearable');
+
 
 
 
@@ -65,6 +67,7 @@ app.use('/api/med-recetados', medRecetadosRoutes);
 app.use('/api/documentos', documentosRoutes);
 app.use('/api/alertas', alertasRoutes);
 app.use('/api/ventas', ventaRoutes);
+app.use('/api/wearable', wearableRoutes);
 
 
 
