@@ -5,8 +5,10 @@ const verificarYRenovarToken = require('../middlewares/authMiddleware');
 
 router.use(verificarYRenovarToken);
 
+
 router.post('/register', citaController.crearCita);
 //solo doctor
+router.get('/todas', citaController.verTodasLasCitas);
 
 //solo paciente
 router.get('/paciente/:id', citaController.verCitasPorPaciente);

@@ -144,3 +144,13 @@ exports.verCitasPorPaciente = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener citas del paciente' });
   }
 };
+exports.verTodasLasCitas = async (req, res) => {
+  try {
+    const [rows] = await query(`SELECT * FROM Citas ORDER BY fecha_hora ASC`);
+    res.json({ success: true, citas: rows });
+  } catch (err) {
+    console.error('Error al obtener todas las citas:', err);
+    res.status(500).json({ error: 'Error al obtener todas las citas' });
+  }
+};
+
