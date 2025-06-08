@@ -11,7 +11,7 @@ router.post('/register', citaController.crearCita);
 router.get('/todas', citaController.verTodasLasCitas);
 
 //solo paciente
-router.get('/paciente/:id', citaController.verCitasPorPaciente);
+router.get('/// solo doctorpaciente/:id', citaController.verCitasPorPaciente);
 //solo el doctor puede actualizar
 router.put('/update/:id', citaController.actualizarCita);
 router.put('/update/:id/cancelar', citaController.cancelarCita);
