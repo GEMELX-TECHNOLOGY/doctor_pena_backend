@@ -27,10 +27,7 @@ async function connectMySQL() {
 }
 
 module.exports = {
-  query: async (sql, params) => {
-    const [rows] = await pool.query(sql, params);
-    return rows;
-  },
+  query: pool.query.bind(pool),
   getConnection,
-  connectMySQL
+  connectMySQL 
 };

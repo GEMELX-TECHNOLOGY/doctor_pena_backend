@@ -75,7 +75,7 @@ exports.actualizarCita = async (req, res) => {
       if (conflicto) {
         return res.status(409).json({ error: 'Ese horario ya está ocupado' });
       }
-      nuevoEstado = 'reprogramada'; // 🔁 Marcar como reprogramada automáticamente
+      nuevoEstado = 'reprogramada'; // Marcar como reprogramada automáticamente
     }
 
     await query(
@@ -115,7 +115,6 @@ exports.actualizarCita = async (req, res) => {
   }
 };
 
-
 exports.cancelarCita = async (req, res) => {
   try {
     const [result] = await query(
@@ -132,6 +131,22 @@ exports.cancelarCita = async (req, res) => {
   }
 };
 
+exports.marcarCitaCompletada = async (req, res) => {
+  try {
+    const [result] = await query(
+      `UPDATE Citas SET estado = 'completada' WHERE id = ?`,
+      [req.params.id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Cita no encontrada' });
+    }
+    res.json({ success: true, mensaje: 'Cita marcada como completada' });
+  } catch (err) {
+    console.error('Error al marcar cita como completada:', err);
+    res.status(500).json({ error: 'Error al actualizar cita' });
+  }
+};
+
 exports.verCitasPorPaciente = async (req, res) => {
   try {
     const [rows] = await query(
@@ -144,6 +159,7 @@ exports.verCitasPorPaciente = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener citas del paciente' });
   }
 };
+
 exports.verTodasLasCitas = async (req, res) => {
   try {
     const [rows] = await query(`SELECT * FROM Citas ORDER BY fecha_hora ASC`);
@@ -153,4 +169,3 @@ exports.verTodasLasCitas = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener todas las citas' });
   }
 };
-

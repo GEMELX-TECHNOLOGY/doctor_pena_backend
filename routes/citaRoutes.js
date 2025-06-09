@@ -5,15 +5,19 @@ const verificarYRenovarToken = require('../middlewares/authMiddleware');
 
 router.use(verificarYRenovarToken);
 
-
 router.post('/register', citaController.crearCita);
-//solo doctor
+
+// Solo doctor
 router.get('/todas', citaController.verTodasLasCitas);
 
-//solo paciente
-router.get('/// solo doctorpaciente/:id', citaController.verCitasPorPaciente);
-//solo el doctor puede actualizar
+// Solo paciente
+router.get('/paciente/:id', citaController.verCitasPorPaciente);
+
+// Solo el doctor puede actualizar
 router.put('/update/:id', citaController.actualizarCita);
 router.put('/update/:id/cancelar', citaController.cancelarCita);
+
+// Nuevo endpoint para marcar cita completada (solo doctor)
+router.put('/update/:id/completar', citaController.marcarCitaCompletada);
 
 module.exports = router;
