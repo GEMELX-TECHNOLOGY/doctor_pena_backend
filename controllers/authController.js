@@ -415,3 +415,27 @@ exports.actualizarCredencialesPaciente = async (req, res) => {
     res.status(500).json({ error: 'Error interno al actualizar' });
   }
 };
+exports.eliminarCuentaPaciente = async (req, res) => {
+  try {
+    const pacienteId = req.user?.userId;
+    const rol = req.user?.rol;
+
+    if (rol !== 'paciente') {
+      return res.status(403).json({ error: 'Solo los pacientes pueden eliminar su cuenta' });
+    }
+
+    const [usuario] = await query('SELECT * FROM Usuarios WHERE id = ? AND rol = "paciente"', [pacienteId]);
+
+    if (!usuario) {
+      return res.status(404).json({ error: 'Paciente no encontrado' });
+    }
+
+    await query('UPDATE Usuarios SET estado = "inactivo" WHERE id = ?', [pacienteId]);
+
+    res.json({ success: true, mensaje: 'Cuenta desactivada correctamente' });
+  } catch (err) {
+    console.error('Error al eliminar cuenta de paciente:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
