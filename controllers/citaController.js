@@ -131,21 +131,38 @@ exports.cancelarCita = async (req, res) => {
   }
 };
 
-exports.marcarCitaCompletada = async (req, res) => {
+exports.marcarEstadoFinalCompletada = async (req, res) => {
   try {
-    const [result] = await query(
-      `UPDATE Citas SET estado = 'completada' WHERE id = ?`,
-      [req.params.id]
-    );
-    if (result.affectedRows === 0) {
+    // Verificar si la cita existe
+    const [cita] = await query(`SELECT estado_final FROM Citas WHERE id = ?`, [req.params.id]);
+    if (cita.length === 0) {
       return res.status(404).json({ error: 'Cita no encontrada' });
     }
-    res.json({ success: true, mensaje: 'Cita marcada como completada' });
+
+    // Verificar si ya está completada
+    if (cita[0].estado_final === 'completada') {
+      return res.status(200).json({ success: true, mensaje: 'La cita ya está marcada como completada' });
+    }
+
+    // Actualizar el campo estado_final
+    const [result] = await query(
+      `UPDATE Citas SET estado_final = 'completada' WHERE id = ?`,
+      [req.params.id]
+    );
+
+    // Confirmar que se hizo el cambio
+    if (result.affectedRows === 0) {
+      return res.status(500).json({ error: 'No se pudo actualizar estado_final' });
+    }
+
+    res.json({ success: true, mensaje: 'Cita marcada como completada (estado_final)' });
   } catch (err) {
-    console.error('Error al marcar cita como completada:', err);
-    res.status(500).json({ error: 'Error al actualizar cita' });
+    console.error('Error al actualizar estado_final:', err);
+    res.status(500).json({ error: 'Error al actualizar estado_final' });
   }
 };
+
+ 
 
 exports.verCitasPorPaciente = async (req, res) => {
   try {
@@ -169,3 +186,28 @@ exports.verTodasLasCitas = async (req, res) => {
     res.status(500).json({ error: 'Error al obtener todas las citas' });
   }
 };
+exports.actualizarEstadoCita = async (req, res) => {
+  try {
+    const { estado } = req.body;
+
+    const valoresValidos = ['pendiente', 'reprogramada', 'cancelada', 'confirmada'];
+    if (!valoresValidos.includes(estado)) {
+      return res.status(400).json({ error: 'Estado inválido' });
+    }
+
+    const [result] = await query(
+      `UPDATE Citas SET estado = ? WHERE id = ?`,
+      [estado, req.params.id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Cita no encontrada' });
+    }
+
+    res.json({ success: true, mensaje: `Estado actualizado a ${estado}` });
+  } catch (err) {
+    console.error('Error al actualizar estado:', err);
+    res.status(500).json({ error: 'Error al actualizar estado' });
+  }
+};
+

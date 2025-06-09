@@ -379,3 +379,39 @@ exports.registroPacienteApp = async (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor', detalle: error.message });
     }
 };
+exports.actualizarCredencialesPaciente = async (req, res) => {
+  try {
+    const pacienteId = req.user?.userId;
+    const { email, nuevaContrasena } = req.body;
+
+    if (req.user?.rol !== 'paciente') {
+      return res.status(403).json({ error: 'Solo el paciente puede actualizar sus credenciales' });
+    }
+
+    const updates = [];
+    const values = [];
+
+    const emailNormalizado = email?.trim().toLowerCase();
+    updates.push('email = ?');
+    values.push(emailNormalizado);
+
+    if (nuevaContrasena) {
+      const hashed = await bcrypt.hash(nuevaContrasena, 10);
+      updates.push('contrasena_hash = ?');
+      values.push(hashed);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'Nada que actualizar' });
+    }
+
+    values.push(pacienteId);
+
+    await query(`UPDATE Usuarios SET ${updates.join(', ')} WHERE id = ?`, values);
+
+    res.json({ success: true, mensaje: 'Credenciales actualizadas correctamente' });
+  } catch (err) {
+    console.error('Error actualizando credenciales del paciente:', err);
+    res.status(500).json({ error: 'Error interno al actualizar' });
+  }
+};

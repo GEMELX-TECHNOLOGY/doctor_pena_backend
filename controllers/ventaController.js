@@ -1,8 +1,7 @@
 
-
 const { query } = require('../config/db.sql');
 
-// Crear venta (no cambia)
+// Crear venta 
 exports.crearVenta = async (req, res) => {
   try {
     const { paciente_id, producto_id, receta_id = null, cantidad } = req.body;

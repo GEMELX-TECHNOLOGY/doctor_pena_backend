@@ -15,7 +15,8 @@ router.post('/login', authController.login);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 router.post('/registro-paciente-app', authController.registroPacienteApp);
-
+// Ruta para actualizar correo y contraseña paciente (requiere token)
+router.put('/paciente/actualizar-credenciales', verificarYRenovarToken, authController.actualizarCredencialesPaciente);
 
 //refresh token
 router.post('/refresh-token', authController.refreshToken);
