@@ -1,16 +1,7 @@
 
 const { query } = require('../config/db.sql');
 
-// Validar existencia de paciente y médico
-async function existePaciente(paciente_id) {
-  const [res] = await query('SELECT id FROM Pacientes WHERE id = ?', [paciente_id]);
-  return res.length > 0;
-}
 
-async function existeMedico(medico_id) {
-  const [res] = await query('SELECT id FROM Medicos WHERE id = ?', [medico_id]);
-  return res.length > 0;
-}
 
 exports.crearConsulta = async (req, res) => {
   try {

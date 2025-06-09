@@ -1,3 +1,5 @@
+const jwt = require('jsonwebtoken');
+
 
 const crypto = require('crypto');
 const { query } = require('../config/db.sql'); 

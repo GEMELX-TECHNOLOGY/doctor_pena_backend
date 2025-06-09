@@ -3,10 +3,10 @@ const express = require('express');
 const cors = require('cors');
 const { generarAlertasAutomaticas } = require('./utils/alertasAuto');
 generarAlertasAutomaticas();
-const alertasJob = require('./jobs/alertasJob');
+
 // BD
 const { connectMySQL } = require('./config/db.sql'); // Conexión a MySQL
-const { connectMongoDB } = require('./config/db.mongo'); // Conexión a MongoDB
+
 
 // rutas
 const authRoutes = require('./routes/authRoutes');
@@ -27,12 +27,6 @@ const alertasRoutes = require('./routes/alertasRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
 const wearableRoutes = require('./routes/wearable');
 
-
-
-
-
-
-
 // instancia de Express
 const app = express();
 
@@ -44,16 +38,17 @@ app.use(express.json());
 try {
   connectMySQL(); 
   console.log('✅ Conectado a MySQL');
-  
-  connectMongoDB(); 
-  console.log('✅ Conectado a MongoDB');
+  // Firebase ya se conectó al importar 'db'
 } catch (err) {
   console.error('Error al conectar a las bases de datos:', err);
   process.exit(1); // Salir si no podemos conectar a las DBs
 }
+
+
+
 // Rutas
-app.use('/api/auth',authRoutes);
-app.use('/api/pacientes',verificarYRenovarToken, pacienteRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/pacientes', verificarYRenovarToken, pacienteRoutes);
 app.use('/api/medicos', medicoRoutes);
 app.use('/api/consultas', consultaRoutes);
 app.use('/api/citas', citaRoutes);
@@ -69,20 +64,17 @@ app.use('/api/alertas', alertasRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/wearable', wearableRoutes);
 
-
-
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({
-        error: 'Error interno del servidor',
-        message: err.message
-    });
+app.use((err, req, res) => {
+  console.error(err.stack);
+  res.status(500).json({
+    error: 'Error interno del servidor',
+    message: err.message,
+  });
 });
 
 // server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-    console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
-})
-
+  console.log(`Servidor corriendo en puerto ${PORT}`);
+  console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
+});

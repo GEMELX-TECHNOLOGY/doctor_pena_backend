@@ -1,3 +1,4 @@
+const { query } = require('../config/db.sql');
 
 exports.validarTipoPaciente = (tiposPermitidos) => {
   return async (req, res, next) => {

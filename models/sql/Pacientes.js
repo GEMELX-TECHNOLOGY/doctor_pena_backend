@@ -1,5 +1,5 @@
 
-const { query, getConnection } = require('../../config/db.sql');
+const { query } = require('../../config/db.sql');
 
 class Paciente {
   // Crear un nuevo paciente con tipo
