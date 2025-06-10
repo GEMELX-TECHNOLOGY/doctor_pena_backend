@@ -1,4 +1,6 @@
 const { query } = require('../config/db.sql');
+const { calcularEdad } = require('../utils/helpers');
+const { format } = require('date-fns');
 
 const USUARIO_ID_DOCTOR_ADMIN = 1; // ID del Doctor 
 
@@ -177,15 +179,51 @@ exports.verCitasPorPaciente = async (req, res) => {
   }
 };
 
+
+
 exports.verTodasLasCitas = async (req, res) => {
   try {
-    const [rows] = await query(`SELECT * FROM Citas ORDER BY fecha_hora ASC`);
-    res.json({ success: true, citas: rows });
+    const [citas] = await query(`SELECT * FROM Citas ORDER BY fecha_hora ASC`);
+    
+    const citasConPaciente = await Promise.all(citas.map(async (cita) => {
+      const [pacienteData] = await query(
+        `SELECT matricula, nombre, apellidos, fecha_nacimiento FROM Pacientes WHERE id = ?`,
+        [cita.paciente_id]
+      );
+
+      let paciente = null;
+      if (pacienteData.length > 0) {
+        const p = pacienteData[0];
+        paciente = {
+          matricula: p.matricula,
+          nombre: p.nombre,
+          apellidos: p.apellidos,
+          edad: calcularEdad(p.fecha_nacimiento)
+        };
+      }
+
+      const fechaFormateada = format(new Date(cita.fecha_hora), "dd-MM-yyyy - hh:mm a");
+
+      return {
+        id: cita.id,
+        paciente_id: cita.paciente_id,
+        fecha_hora: fechaFormateada,
+        motivo: cita.motivo,
+        estado: cita.estado,
+        estado_final: cita.estado_final,
+        ...(cita.estado === 'cancelada' || cita.estado === 'reprogramada' ? { notas: cita.notas } : {}),
+        paciente
+      };
+    }));
+
+    res.json({ success: true, citas: citasConPaciente });
   } catch (err) {
     console.error('Error al obtener todas las citas:', err);
     res.status(500).json({ error: 'Error al obtener todas las citas' });
   }
 };
+
+
 exports.actualizarEstadoCita = async (req, res) => {
   try {
     const { estado } = req.body;
