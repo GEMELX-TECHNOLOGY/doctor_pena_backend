@@ -4,37 +4,37 @@ exports.generarAlertasAutomaticas = async () => {
   try {
     const doctorId = 1; 
     // STOCK bajo
-    const [productosBajos] = await query(`SELECT * FROM Productos WHERE stock <= 3`);
+    const [productosBajos] = await query(`SELECT * FROM Products WHERE stock <= minimum_stock`);
     for (const prod of productosBajos) {
       await query(
-        `INSERT INTO Alertas (tipo, destinatario_id, mensaje)
-         SELECT 'stock', ?, ? FROM DUAL
+        `INSERT INTO Alerts (type, recipient_id, message, date, \`read\`)
+         SELECT 'stock', ?, ?, NOW(), 0 FROM DUAL
          WHERE NOT EXISTS (
-           SELECT 1 FROM Alertas 
-           WHERE tipo = 'stock' AND mensaje LIKE ? AND leída = 0
+           SELECT 1 FROM Alerts 
+           WHERE type = 'stock' AND message LIKE ? AND \`read\` = 0
          )`,
-        [doctorId, `El producto "${prod.nombre}" tiene stock bajo (${prod.stock}).`, `%${prod.nombre}%`]
+        [doctorId, `The product "${prod.name}" has low stock (${prod.stock}).`, `%${prod.name}%`]
       );
     }
 
     // CADUCIDAD próxima
     const [productosCaducos] = await query(
-      `SELECT * FROM Productos WHERE caducidad IS NOT NULL AND caducidad <= DATE_ADD(NOW(), INTERVAL 7 DAY)`
+      `SELECT * FROM Products WHERE expiration IS NOT NULL AND expiration <= DATE_ADD(NOW(), INTERVAL 7 DAY)`
     );
     for (const prod of productosCaducos) {
       await query(
-        `INSERT INTO Alertas (tipo, destinatario_id, mensaje)
-         SELECT 'caducidad', ?, ? FROM DUAL
+        `INSERT INTO Alerts (type, recipient_id, message, date, \`read\`)
+         SELECT 'caducidad', ?, ?, NOW(), 0 FROM DUAL
          WHERE NOT EXISTS (
-           SELECT 1 FROM Alertas 
-           WHERE tipo = 'caducidad' AND mensaje LIKE ? AND leída = 0
+           SELECT 1 FROM Alerts 
+           WHERE type = 'caducidad' AND message LIKE ? AND \`read\` = 0
          )`,
-        [doctorId, `El producto "${prod.nombre}" caduca pronto (${prod.caducidad})`, `%${prod.nombre}%`]
+        [doctorId, `The product "${prod.name}" expires soon (${prod.expiration})`, `%${prod.name}%`]
       );
     }
 
-    console.log('Alertas automáticas generadas');
+    console.log('Automatic alerts generated');
   } catch (err) {
-    console.error(' Error generando alertas automáticas:', err);
+    console.error('Error generating automatic alerts:', err);
   }
 };

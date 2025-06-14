@@ -10,10 +10,20 @@ const pool = mysql.createPool({
   queueLimit: 0
 });
 
+// Establecer zona horaria UTC-5 para cada nueva conexión
+pool.on('connection', (connection) => {
+  connection.promise().query("SET time_zone = '-05:00'")
+    .then(() => {
+      console.log("🕒 Zona horaria -05:00 establecida");
+    })
+    .catch((err) => {
+      console.error('❌ Error al establecer la zona horaria:', err.message);
+    });
+});
+
 async function getConnection() {
   return await pool.getConnection();
 }
-
 
 async function connectMySQL() {
   try {

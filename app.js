@@ -10,21 +10,21 @@ const { connectMySQL } = require('./config/db.sql'); // Conexión a MySQL
 
 // rutas
 const authRoutes = require('./routes/authRoutes');
-const pacienteRoutes = require('./routes/pacienteRoutes');
+const pacienteRoutes = require('./routes/patientRoutes');
 const verificarYRenovarToken = require('./middlewares/authMiddleware');
-const medicoRoutes = require('./routes/medicoRoutes');
-const consultaRoutes = require('./routes/consultaRoutes');
-const citaRoutes = require('./routes/citaRoutes');
-const signosRoutes = require('./routes/signosRoutes');
-const recetaRoutes = require('./routes/recetaRoutes');
-const vacunaRoutes = require('./routes/vacunaRoutes');
-const antecedenteRoutes = require('./routes/antecedenteRoutes');
-const historialRoutes = require('./routes/historialRoutes');
-const productosRoutes = require('./routes/productosRoutes');
-const medRecetadosRoutes = require('./routes/medRecetadosRoutes');
-const documentosRoutes = require('./routes/documentosRoutes');
-const alertasRoutes = require('./routes/alertasRoutes');
-const ventaRoutes = require('./routes/ventaRoutes');
+const medicoRoutes = require('./routes/doctorRoutes');
+const consultaRoutes = require('./routes/consultationRoutes');
+const citaRoutes = require('./routes/appointmentRoutes');
+const signosRoutes = require('./routes/vitalSignsRoutes');
+const recetaRoutes = require('./routes/prescriptionRoutes');
+const vaccineRoutes = require('./routes/vaccineRoutes');
+const antecedenteRoutes = require('./routes/familyHistoryRoutes');
+const historialRoutes = require('./routes/historyRoutes');
+const productosRoutes = require('./routes/productRoutes');
+const medRecetadosRoutes = require('./routes/prescribedMedicationRoutes');
+const documentosRoutes = require('./routes/documentRoutes');
+const alertasRoutes = require('./routes/alertRoutes');
+const ventaRoutes = require('./routes/saleRoutes');
 const wearableRoutes = require('./routes/wearable');
 
 // instancia de Express
@@ -54,7 +54,7 @@ app.use('/api/consultas', consultaRoutes);
 app.use('/api/citas', citaRoutes);
 app.use('/api/signos-vitales', signosRoutes);
 app.use('/api/recetas', recetaRoutes);
-app.use('/api/vacunas', vacunaRoutes);
+app.use('/api/vacunas', vaccineRoutes);
 app.use('/api/antecedentes', antecedenteRoutes);
 app.use('/api/historial', historialRoutes);
 app.use('/api/productos', productosRoutes);
@@ -64,13 +64,14 @@ app.use('/api/alertas', alertasRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/wearable', wearableRoutes);
 
-app.use((err, req, res) => {
+app.use((err, req, res, _next) => {
   console.error(err.stack);
   res.status(500).json({
     error: 'Error interno del servidor',
     message: err.message,
   });
 });
+
 
 // server
 const PORT = process.env.PORT || 3000;

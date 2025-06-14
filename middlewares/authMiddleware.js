@@ -12,25 +12,24 @@ const verificarYRenovarToken = async (req, res, next) => {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Asignar decoded al request para usar en controladores
     req.user = decoded;
 
     try {
-      await query('UPDATE Usuarios SET ultimo_acceso = NOW() WHERE id = ?', [decoded.userId]);
+     
+      await query('UPDATE Users SET last_access = NOW() WHERE id = ?', [decoded.userId]);
     } catch (err) {
-      console.error('Error al actualizar último_acceso:', err);
+      console.error('Error al actualizar last_access:', err);
+     
     }
 
-    // Renovar token
     const nuevoToken = jwt.sign(
-      { userId: decoded.userId, rol: decoded.rol },
+      { userId: decoded.userId, role: decoded.role }, 
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
 
     res.locals.usuario = decoded;
     res.locals.nuevoToken = nuevoToken;
-
     res.setHeader('x-renewed-token', nuevoToken);
 
     next();
