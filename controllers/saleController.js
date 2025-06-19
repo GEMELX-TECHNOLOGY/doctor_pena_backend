@@ -51,7 +51,7 @@ exports.getAllSales = async (req, res) => {
       JOIN Patients Pa ON S.patient_id = Pa.id
     `);
 
-    // Limpiar y formatear los datos de las ventas
+    // Limpiar datos de ventas
     const cleanSales = sales.map(s => ({
       ...s,
       product: s.product?.toString(),
@@ -59,7 +59,13 @@ exports.getAllSales = async (req, res) => {
       patient_last_name: s.patient_last_name?.toString(),
     }));
 
-    res.json(cleanSales);
+    // Calcular el total 
+    const total_sales = cleanSales.reduce((acc, sale) => acc + parseFloat(sale.total), 0);
+
+    res.json({
+      total_sales,
+      sales: cleanSales
+    });
   } catch (error) {
     console.error('Error al obtener ventas:', error);
     res.status(500).json({ 

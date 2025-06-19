@@ -97,3 +97,89 @@ exports.viewAndMarkAsRead = async (req, res) => {
     });
   }
 };
+exports.getReadDocuments = async (req, res) => {
+  try {
+    const patientId = req.params.id;
+
+    const [docs] = await query(
+      `SELECT * FROM Documents 
+       WHERE patient_id = ? AND status = 'leido' 
+       ORDER BY date DESC`,
+      [patientId]
+    );
+
+    res.json({ 
+      success: true, 
+      documents: docs 
+    });
+  } catch (error) {
+    console.error('Error al obtener documentos leídos:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener los documentos leídos' 
+    });
+  }
+};
+exports.getPendingDocuments = async (req, res) => {
+  try {
+    const patientId = req.params.id;
+
+    const [docs] = await query(
+      `SELECT * FROM Documents 
+       WHERE patient_id = ? AND status = 'pendiente' 
+       ORDER BY date DESC`,
+      [patientId]
+    );
+
+    res.json({ 
+      success: true, 
+      documents: docs 
+    });
+  } catch (error) {
+    console.error('Error al obtener documentos pendientes:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener los documentos pendientes' 
+    });
+  }
+};
+exports.getAllReadDocuments = async (req, res) => {
+  try {
+    const [docs] = await query(`
+      SELECT D.*, Pa.first_name, Pa.last_name 
+      FROM Documents D
+      JOIN Patients Pa ON D.patient_id = Pa.id
+      WHERE D.status = 'leido'
+      ORDER BY D.date DESC
+    `);
+
+    res.json({ 
+      success: true, 
+      documents: docs 
+    });
+  } catch (error) {
+    console.error('Error al obtener documentos leídos (global):', error);
+    res.status(500).json({ 
+      error: 'Error al obtener los documentos leídos' 
+    });
+  }
+};
+exports.getAllPendingDocuments = async (req, res) => {
+  try {
+    const [docs] = await query(`
+      SELECT D.*, Pa.first_name, Pa.last_name 
+      FROM Documents D
+      JOIN Patients Pa ON D.patient_id = Pa.id
+      WHERE D.status = 'pendiente'
+      ORDER BY D.date DESC
+    `);
+
+    res.json({ 
+      success: true, 
+      documents: docs 
+    });
+  } catch (error) {
+    console.error('Error al obtener documentos pendientes (global):', error);
+    res.status(500).json({ 
+      error: 'Error al obtener los documentos pendientes' 
+    });
+  }
+};
