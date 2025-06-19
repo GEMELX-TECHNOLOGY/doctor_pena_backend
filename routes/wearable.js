@@ -3,6 +3,64 @@ const router = express.Router();
 const { admin, db } = require('../config/firebase');
 const mysql = require('../config/db.sql');
 const { queryHuggingFace } = require('../utils/huggingfaceClient');
+const jwt = require('jsonwebtoken'); // Importamos JWT
+
+// Middleware de autenticación 
+const authenticateWearable = async (req, res, next) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        
+        if (!token) {
+            return res.status(401).json({ error: 'Acceso no autorizado' });
+        }
+
+        // Verificar token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        
+        if (decoded.role !== 'paciente') {
+            return res.status(403).json({ error: 'Solo pacientes pueden subir datos de sensores' });
+        }
+
+        // Obtener registration_number
+        let registration_number = decoded.registration_number;
+        
+        // Si no está en el token, buscarlo en la bd
+        if (!registration_number) {
+            const [patients] = await mysql.query(
+                'SELECT registration_number FROM Patients WHERE user_id = ?',
+                [decoded.userId]
+            );
+            
+            if (patients.length === 0) {
+                return res.status(404).json({ error: 'Paciente no encontrado' });
+            }
+            
+            registration_number = patients[0].registration_number;
+        }
+
+        // Adjuntar información al req
+        req.user = {
+            userId: decoded.userId,
+            role: decoded.role,
+            registration_number
+        };
+
+        next();
+    } catch (error) {
+        console.error(' Error de autenticación:', error.message);
+        
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Token expirado' });
+        }
+        
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ error: 'Token inválido' });
+        }
+        
+        res.status(500).json({ error: 'Error interno de autenticación' });
+    }
+};
 
 async function generarMensajePersonalizado(historial, signosVitales) {
   const prompt = `
@@ -28,11 +86,10 @@ async function generarMensajePersonalizado(historial, signosVitales) {
     const mensaje = await queryHuggingFace(prompt);
     return mensaje;
   } catch (error) {
-    console.error('❌ Error generando texto con Hugging Face:', error);
+    console.error(' Error generando texto con Hugging Face:', error);
     return null;
   }
 }
-
 
 const analizarSignosVitales = ({ heart_rate, oxygenation, temperature }) => {
   if (heart_rate > 120 || oxygenation < 90 || temperature > 38.5 || temperature < 35) {
@@ -41,84 +98,93 @@ const analizarSignosVitales = ({ heart_rate, oxygenation, temperature }) => {
   return 'normal';
 };
 
-router.post('/upload', async (req, res) => {
-  const { registration_number, heart_rate, oxygenation, temperature } = req.body;
+// Aplicar middleware a la ruta
+router.post('/upload', authenticateWearable, async (req, res) => {
+    // Usar el registration_number del usuario autenticado
+    const registration_number = req.user.registration_number;
+    
+    // Obtener los datos del cuerpo de la solicitud
+    const { heart_rate, oxygenation, temperature } = req.body;
 
-  console.log(' Datos recibidos:', req.body);
+    console.log(' Datos recibidos:', { 
+        registration_number, 
+        heart_rate, 
+        oxygenation, 
+        temperature 
+    });
 
-  try {
-    // Buscar paciente
-    const [rows] = await mysql.query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Paciente no encontrado en la base de datos MySQL' });
+    try {
+        // Buscar paciente por registration_number 
+        const [rows] = await mysql.query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
+        if (rows.length === 0) {
+            return res.status(404).json({ error: 'Paciente no encontrado en la base de datos MySQL' });
+        }
+
+        const paciente = rows[0];
+        const riesgo = analizarSignosVitales({ heart_rate, oxygenation, temperature });
+
+        let mensajeIA = null;
+        if (riesgo !== 'normal') {
+            const [alertasPrevias] = await mysql.query(
+                'SELECT message FROM Alerts WHERE recipient_id = ? ORDER BY date DESC LIMIT 5',
+                [paciente.user_id]
+            );
+
+            const historial = alertasPrevias.map(a => a.message).join('\n') || "Sin historial previo.";
+            mensajeIA = await generarMensajePersonalizado(historial, { heart_rate, oxygenation, temperature });
+
+            await mysql.query(
+                'INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)',
+                ['ia', paciente.user_id, mensajeIA || `Riesgo detectado: ${riesgo}`]
+            );
+        }
+
+        let isEmergency = false;
+        if (
+            temperature < 35 || temperature > 38.5 ||
+            heart_rate < 50 || heart_rate > 120 ||
+            oxygenation < 90
+        ) {
+            isEmergency = true;
+            await mysql.query(
+                'INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)',
+                ['emergencia', paciente.user_id, `Emergencia detectada para el paciente ${paciente.first_name} ${paciente.last_name}`]
+            );
+        }
+
+        const newData = {
+            patient_id: registration_number,
+            heart_rate,
+            oxygenation,
+            temperature,
+            isEmergency,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        console.log(" Guardando en Firebase:", newData);
+
+        await db.collection('WearableData').add(newData)
+            .then(ref => {
+                console.log(" Documento agregado con ID:", ref.id);
+                res.json({
+                    message: 'Datos guardados correctamente en Firestore',
+                    data: newData,
+                    patient: {
+                        id: paciente.id,
+                        name: `${paciente.first_name} ${paciente.last_name}`
+                    },
+                    iaMessage: mensajeIA || 'Sin riesgos detectados'
+                });
+            })
+            .catch(err => {
+                console.error(" Error al guardar en Firestore:", err);
+                res.status(500).json({ error: 'Error al guardar en Firebase' });
+            });
+
+    } catch (error) {
+        console.error('Error general al procesar:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
     }
-
-    const paciente = rows[0];
-    const riesgo = analizarSignosVitales({ heart_rate, oxygenation, temperature });
-
-    let mensajeIA = null;
-    if (riesgo !== 'normal') {
-      const [alertasPrevias] = await mysql.query(
-        'SELECT message FROM Alerts WHERE recipient_id = ? ORDER BY date DESC LIMIT 5',
-        [paciente.user_id]
-      );
-
-      const historial = alertasPrevias.map(a => a.message).join('\n') || "Sin historial previo.";
-      mensajeIA = await generarMensajePersonalizado(historial, { heart_rate, oxygenation, temperature });
-
-      await mysql.query(
-        'INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)',
-        ['ia', paciente.user_id, mensajeIA || `Riesgo detectado: ${riesgo}`]
-      );
-    }
-
-    let isEmergency = false;
-    if (
-      temperature < 35 || temperature > 38.5 ||
-      heart_rate < 50 || heart_rate > 120 ||
-      oxygenation < 90
-    ) {
-      isEmergency = true;
-      await mysql.query(
-        'INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)',
-        ['emergencia', paciente.user_id, `Emergencia detectada para el paciente ${paciente.first_name} ${paciente.last_name}`]
-      );
-    }
-
-    const newData = {
-      patient_id: registration_number,
-      heart_rate,
-      oxygenation,
-      temperature,
-      isEmergency,
-      timestamp: admin.firestore.FieldValue.serverTimestamp()
-    };
-
-    console.log(" Guardando en Firebase:", newData);
-    console.log(" Proyecto Firebase:", admin.app().options.credential.projectId);
-
-    await db.collection('WearableData').add(newData)
-      .then(ref => {
-        console.log("✅ Documento agregado con ID:", ref.id);
-        res.json({
-          message: 'Datos guardados correctamente en Firestore',
-          data: newData,
-          patient: {
-            id: paciente.id,
-            name: `${paciente.first_name} ${paciente.last_name}`
-          },
-          iaMessage: mensajeIA || 'Sin riesgos detectados'
-        });
-      })
-      .catch(err => {
-        console.error("❌ Error al guardar en Firestore:", err);
-        res.status(500).json({ error: 'Error al guardar en Firebase' });
-      });
-
-  } catch (error) {
-    console.error('❌ Error general al procesar:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
-  }
 });
 
 module.exports = router;

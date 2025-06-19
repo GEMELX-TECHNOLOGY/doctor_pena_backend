@@ -1,53 +1,58 @@
 const mqtt = require('mqtt');
 const axios = require('axios');
 
-// Configuraciones
+// Configuración
 const MQTT_BROKER_URL = 'mqtt://broker.hivemq.com';
 const MQTT_TOPIC = 'salud/sensores';
 const BACKEND_URL = 'http://localhost:3000/api/wearable/upload';
 
-// HAY QUE CAMBIAR ESTE VALOR EN LA PETICION
-let REGISTRATION_NUMBER = 'PAC48796';
-
 const client = mqtt.connect(MQTT_BROKER_URL);
 
 client.on('connect', () => {
-  console.log(`✅ Conectado a MQTT en ${MQTT_BROKER_URL}`);
-  client.subscribe(MQTT_TOPIC, (err) => {
-    if (err) {
-      console.error('Error al suscribirse:', err.message);
-    } else {
-      console.log(` Suscrito a topic: ${MQTT_TOPIC}`);
-    }
-  });
+    console.log(`Conectado a MQTT en ${MQTT_BROKER_URL}`);
+    client.subscribe(MQTT_TOPIC, (err) => {
+        err 
+            ? console.error('Error al suscribirse:', err.message)
+            : console.log(` Suscrito a topic: ${MQTT_TOPIC}`);
+    });
 });
 
 client.on('message', async (topic, message) => {
-  try {
-    const datos = JSON.parse(message.toString());
-    console.log(' Datos recibidos del ESP32:', datos);
+    try {
+        const data = JSON.parse(message.toString());
+        console.log(' Datos recibidos:', data);
 
-    const { bpm, spo2, temp } = datos;
+        // Verificar estructura del mensaje
+        if (!data.token || !data.sensors) {
+            return console.warn(' Estructura de mensaje inválida');
+        }
 
-    const heart_rate = parseFloat(bpm);
-    const oxygenation = parseFloat(spo2);
-    const temperature = parseFloat(temp);
+        const payload = {
+            registration_number: null, 
+            heart_rate: parseFloat(data.sensors.bpm),
+            oxygenation: parseFloat(data.sensors.spo2),
+            temperature: parseFloat(data.sensors.temp)
+        };
 
-    if (isNaN(heart_rate) || isNaN(oxygenation) || isNaN(temperature)) {
-      return console.warn(' Datos inválidos:', datos);
+        // Validar datos
+        if (isNaN(payload.heart_rate) || isNaN(payload.oxygenation) || isNaN(payload.temperature)) {
+            return console.warn(' Datos de sensores inválidos');
+        }
+
+        console.log('Enviando al backend:', payload);
+        const response = await axios.post(BACKEND_URL, payload, {
+            headers: {
+                Authorization: `Bearer ${data.token}`
+            }
+        });
+        
+        console.log(' Respuesta del backend:', response.data.message || 'OK');
+
+    } catch (error) {
+        console.error(' Error procesando mensaje:', error.message);
+        
+        if (error.response) {
+            console.error(' Detalles del error:', error.response.data);
+        }
     }
-
-    const payload = {
-      registration_number: REGISTRATION_NUMBER,
-      heart_rate,
-      oxygenation,
-      temperature
-    };
-
-    const response = await axios.post(BACKEND_URL, payload);
-    console.log('✅ Enviado al backend:', response.data.message || 'OK');
-
-  } catch (error) {
-    console.error(' Error procesando mensaje o enviando al backend:', error.message);
-  }
 });

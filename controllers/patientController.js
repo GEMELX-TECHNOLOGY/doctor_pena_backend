@@ -1,10 +1,11 @@
 const { query } = require('../config/db.sql');
-const { generateCustomId, calculateAge, detectPatientChanges } = require('../utils/helpers');
+const { generateCustomId, calculateAge,detectPatientChanges } = require('../utils/helpers');
 
 // Tipos de sangre válidos
 const validBloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+// Tipos de paciente válidos
+const validPatientTypes = ['bebe', 'nino', 'adolescente', 'mujer_reproductiva', 'adulto'];
 
-// Registrar paciente desde la web
 exports.registerPatientWeb = async (req, res) => {
   try {
     const {
@@ -22,7 +23,8 @@ exports.registerPatientWeb = async (req, res) => {
       child_data,
       adolescent_data,
       reproductive_woman_data,
-      adult_data
+      adult_data,
+      patient_type: patient_type_input
     } = req.body;
 
     // Validar tipo de sangre
@@ -33,12 +35,21 @@ exports.registerPatientWeb = async (req, res) => {
     const age = calculateAge(birth_date);
     const registration_number = await generateCustomId();
 
-    // Determinar tipo de paciente según edad y género
-    let patient_type = 'adulto';
-    if (age <= 2) patient_type = 'bebe';
-    else if (age <= 12) patient_type = 'nino';
-    else if (age >= 13 && age <= 17) patient_type = 'adolescente';
-    else if (age >= 18 && age <= 49 && gender.toLowerCase() === 'femenino') patient_type = 'mujer_reproductiva';
+    // Usar el tipo enviado o calcular por edad/género si no se envía
+    let patient_type = patient_type_input || null;
+
+    if (patient_type) {
+      if (!validPatientTypes.includes(patient_type)) {
+        return res.status(400).json({ error: 'Tipo de paciente no válido' });
+      }
+    } else {
+      // Asignación automática si no se envió desde el frontend
+      if (age <= 2) patient_type = 'bebe';
+      else if (age <= 12) patient_type = 'nino';
+      else if (age >= 13 && age <= 17) patient_type = 'adolescente';
+      else if (age >= 18 && age <= 49 && gender.toLowerCase() === 'femenino') patient_type = 'mujer_reproductiva';
+      else patient_type = 'adulto';
+    }
 
     // Insertar datos básicos del paciente
     const [result] = await query(
@@ -139,7 +150,7 @@ exports.registerPatientWeb = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Paciente registrado exitosamente',
-      registration_number: registration_number,
+      registration_number,
       age,
       patient_type
     });
@@ -152,6 +163,8 @@ exports.registerPatientWeb = async (req, res) => {
     });
   }
 };
+
+
 
 // Obtener todos los pacientes
 exports.getAllPatients = async (req, res) => {

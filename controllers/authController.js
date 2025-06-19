@@ -141,8 +141,27 @@ exports.login = async (req, res) => {
         // Actualizar último acceso
         await query('UPDATE Users SET last_access = NOW() WHERE id = ?', [user.id]);
 
+        // Preparar el payload del token
+        const payload = {
+            userId: user.id,
+            role: user.role
+        };
+
+        // Si el usuario es un paciente, buscar su registration_number
+        if (user.role === 'paciente') {
+            const [patients] = await query(
+                'SELECT registration_number FROM Patients WHERE user_id = ?',
+                [user.id]
+            );
+            
+            if (patients.length > 0 && patients[0].registration_number) {
+                payload.registration_number = patients[0].registration_number;
+            }
+        }
+
+        // Generar el token JWT con el payload completo
         const token = jwt.sign(
-            { userId: user.id, role: user.role },
+            payload,
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
@@ -341,7 +360,7 @@ exports.registerPatientApp = async (req, res) => {
         const newUserId = userResult.insertId;
 
         
-        await query('UPDATE Patients SET usuario_id = ? WHERE id = ?', [newUserId, patient.id]);
+        await query('UPDATE Patients SET user_id = ? WHERE id = ?', [newUserId, patient.id]);
 
         const token = jwt.sign(
             { userId: newUserId, role },
