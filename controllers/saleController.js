@@ -174,3 +174,25 @@ exports.deleteSale = async (req, res) => {
     });
   }
 };
+exports.getMonthlyTotals = async (req, res) => {
+  try {
+    const [results] = await query(`
+      SELECT 
+        DATE_FORMAT(date, '%Y-%m') AS month,
+        SUM(total) AS total_sales
+      FROM Sales
+      GROUP BY month
+      ORDER BY month DESC
+    `);
+
+    res.json({
+      success: true,
+      monthly_totals: results
+    });
+  } catch (error) {
+    console.error('Error al obtener totales mensuales:', error);
+    res.status(500).json({
+      error: 'Error al obtener los totales mensuales de ventas'
+    });
+  }
+};

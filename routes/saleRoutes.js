@@ -19,5 +19,7 @@ router.put('/update/:id', ventaController.updateSale);
 // Eliminar venta
 router.delete('/delete/:id', ventaController.deleteSale);
 
+router.get('/totales/mensuales', ventaController.getMonthlyTotals);
+
 
 module.exports = router;
