@@ -1,6 +1,6 @@
 const { query } = require('../config/db.sql');
 
-exports.generarAlertasAutomaticas = async () => {
+exports.generateAutomaticAlerts = async () => {
   try {
     const doctorId = 1; 
     // STOCK bajo
