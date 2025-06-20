@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const historialController = require('../controllers/historyController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const controller = require('../controllers/historyController');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
-router.use(verificarYRenovarToken);
+router.use(verifyAndRenewToken);
 
-router.get('/paciente/:id', historialController.getHistoryByPatient);
-router.get('/todos', historialController.getAllChanges);
+router.get('/patient/:id', controller.getHistoryByPatient); 
+router.get('/all', controller.getAllChanges);
 
-module.exports = router; 
+module.exports = router;

@@ -1,25 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const ventaController = require('../controllers/saleController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const controller = require('../controllers/saleController');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
-router.use(verificarYRenovarToken);
+router.use(verifyAndRenewToken);
 
-// Crear venta
-router.post('/register', ventaController.createSale);
-// Ver todas las ventas
-router.get('/obtener', ventaController.getAllSales);
-
-// Ver una venta por ID
-router.get('/obtener/:id', ventaController.getSaleById);
-
-// Actualizar venta
-router.put('/update/:id', ventaController.updateSale);
-
-// Eliminar venta
-router.delete('/delete/:id', ventaController.deleteSale);
-
-router.get('/totales/mensuales', ventaController.getMonthlyTotals);
-
+router.post('/register', controller.createSale);
+router.get('/', controller.getAllSales); 
+router.get('/:id', controller.getSaleById); 
+router.put('/update/:id', controller.updateSale);
+router.delete('/delete/:id', controller.deleteSale);
+router.get('/totals/monthly', controller.getMonthlyTotals); 
 
 module.exports = router;

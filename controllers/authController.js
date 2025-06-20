@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { query } = require('../config/db.sql');
 const { generateRecoveryToken } = require('../utils/helpers');
+const { generateCustomId } = require('../utils/helpers');
 const { sendPasswordResetEmail } = require('../services/emailService');
 
 // Roles permitidos para web y app
@@ -116,11 +117,12 @@ async function registerUser(req, res, allowedRoles) {
 exports.registerWeb = (req, res) => registerUser(req, res, webRoles);
 exports.registerApp = (req, res) => registerUser(req, res, appRoles);
 
-// Función para iniciar sesión
+
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        // 1. Buscar usuario por email
         const [users] = await query(
             'SELECT * FROM Users WHERE email = ?',
             [email]
@@ -132,46 +134,60 @@ exports.login = async (req, res) => {
             return res.status(401).json({ error: 'Correo electrónico o contraseña incorrectos' });
         }
 
+        // 2. Verificar contraseña
         const passwordMatch = await bcrypt.compare(password, user.password_hash);
         
         if (!passwordMatch) {
             return res.status(401).json({ error: 'Correo electrónico o contraseña incorrectos' });
         }
 
-        // Actualizar último acceso
+        // 3. Actualizar último acceso
         await query('UPDATE Users SET last_access = NOW() WHERE id = ?', [user.id]);
 
-        // Preparar el payload del token
+        // 4. Preparar payload básico
         const payload = {
             userId: user.id,
             role: user.role
         };
 
-        // Si el usuario es un paciente, buscar su registration_number
+        // 5. Si es paciente, buscar registration_number
         if (user.role === 'paciente') {
-            const [patients] = await query(
-                'SELECT registration_number FROM Patients WHERE user_id = ?',
-                [user.id]
-            );
-            
-            if (patients.length > 0 && patients[0].registration_number) {
-                payload.registration_number = patients[0].registration_number;
-            }
-        }
+    const [patients] = await query(
+        'SELECT registration_number FROM Patients WHERE user_id = ?',
+        [user.id]
+    );
+    
+    if (patients.length > 0 && patients[0].registration_number) {
+        payload.registration_number = patients[0].registration_number;
+    } else {
+        // Generar si no existe
+        const newRegNumber = await generateCustomId();
+        await query(
+            'UPDATE Patients SET registration_number = ? WHERE user_id = ?',
+            [newRegNumber, user.id]
+        );
+        payload.registration_number = newRegNumber;
+    }
+}
 
-        // Generar el token JWT con el payload completo
+        // 6. Generar token JWT
         const token = jwt.sign(
             payload,
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
-        res.json({ token });
+        // 7. Respuesta exitosa
+        res.json({ 
+            token,
+            
+        });
 
     } catch (error) {
         console.error('Error en inicio de sesión:', error);
         res.status(500).json({
-            error: 'Error interno del servidor al iniciar sesión'
+            error: 'Error interno del servidor al iniciar sesión',
+            details: error.message
         });
     }
 };

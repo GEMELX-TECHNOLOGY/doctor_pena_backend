@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const signosController = require('../controllers/vitalSignsController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const controller = require('../controllers/vitalSignsController');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
-router.use(verificarYRenovarToken);
+router.use(verifyAndRenewToken);
 
-// Crear, ver y actualizar signos vitales (solo doctor)
-router.post('/register', signosController.createVitalSigns);
-router.get('/obtener/:consulta_id', signosController.getVitalSignsByConsultation);
-router.put('/update/:consulta_id', signosController.updateVitalSigns);
+// Doctor only
+router.post('/register', controller.createVitalSigns);
+router.get('/consultation/:id', controller.getVitalSignsByConsultation); 
+router.put('/update/:consultation_id', controller.updateVitalSigns);
 
 module.exports = router;

@@ -1,27 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const controller = require('../controllers/authController');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
+// Web registration
+router.post('/register/web', controller.registerWeb);
+router.post('/login', controller.login);
 
-//Registro en web
-router.post('/register/web', authController.registerWeb);
+// Mobile app only
+router.post('/forgot-password', controller.forgotPassword);
+router.post('/reset-password', controller.resetPassword);
+router.post('/register/patient-app', controller.registerPatientApp); 
+router.put('/patient/update-credentials', verifyAndRenewToken, controller.updatePatientCredentials); 
+router.delete('/patient/deactivate-account', verifyAndRenewToken, controller.deactivatePatientAccount); 
 
-
-// Login para ambos
-router.post('/login', authController.login);
-
-//usadas exclusivamente en la app movil
-router.post('/forgot-password', authController.forgotPassword);
-router.post('/reset-password', authController.resetPassword);
-router.post('/registro-paciente-app', authController.registerPatientApp);
-// Ruta para actualizar correo y contraseña paciente (requiere token)
-router.put('/paciente/actualizar-credenciales', verificarYRenovarToken, authController.updatePatientCredentials);
-router.delete('/paciente/eliminar-cuenta', verificarYRenovarToken, authController.deactivatePatientAccount);
-
-//refresh token
-router.post('/refresh-token', authController.refreshToken);
-// Solo admin puede modificar sus datos de acceso
-router.put('/admin/actualizar-credenciales', verificarYRenovarToken, authController.updateAdminCredentials);
+// Refresh token
+router.post('/refresh-token', controller.refreshToken);
+router.put('/admin/update-credentials', verifyAndRenewToken, controller.updateAdminCredentials); 
 
 module.exports = router;

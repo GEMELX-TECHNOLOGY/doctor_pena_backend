@@ -45,21 +45,47 @@ exports.createSale = async (req, res) => {
 exports.getAllSales = async (req, res) => {
   try {
     const [sales] = await query(`
-      SELECT S.*, P.name AS product, Pa.first_name AS patient_first_name, Pa.last_name AS patient_last_name
+      SELECT 
+        S.*, 
+        P.name AS product_name,
+        P.description AS product_description,
+        P.price AS product_price,
+        P.image AS product_image,
+        P.formula_salt AS product_formula,
+        P.type AS product_type,
+        P.barcode AS product_barcode,
+        Pa.first_name AS patient_first_name, 
+        Pa.last_name AS patient_last_name
       FROM Sales S
       JOIN Products P ON S.product_id = P.id
       JOIN Patients Pa ON S.patient_id = Pa.id
     `);
 
-    // Limpiar datos de ventas
+    // Limpiar y estructurar los datos en arreglos
     const cleanSales = sales.map(s => ({
-      ...s,
-      product: s.product?.toString(),
-      patient_first_name: s.patient_first_name?.toString(),
-      patient_last_name: s.patient_last_name?.toString(),
+      id: s.id,
+      patient: {
+        id: s.patient_id,
+        first_name: s.patient_first_name,
+        last_name: s.patient_last_name,
+      },
+      product: {
+        id: s.product_id,
+        name: s.product_name,
+        description: s.product_description,
+        price: s.product_price,
+        image: s.product_image,
+        formula: s.product_formula,
+        type: s.product_type,
+        barcode: s.product_barcode
+      },
+      prescription_id: s.prescription_id,
+      quantity: s.quantity,
+      unit_price: s.unit_price,
+      total: s.total,
+      date: s.date
     }));
-
-    // Calcular el total 
+   //calculas total
     const total_sales = cleanSales.reduce((acc, sale) => acc + parseFloat(sale.total), 0);
 
     res.json({

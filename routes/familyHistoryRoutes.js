@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const antecedenteController = require('../controllers/familyHistoryController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const controller = require('../controllers/familyHistoryController');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
-router.use(verificarYRenovarToken);
+router.use(verifyAndRenewToken);
 
-router.post('/register', antecedenteController.createFamilyHistory);
-router.get('/paciente/:id', antecedenteController.getByPatient);
-router.put('/update/:id', antecedenteController.updateFamilyHistory);
-router.delete('/delete/:id', antecedenteController.deleteFamilyHistory);
+router.post('/register', controller.createFamilyHistory);
+router.get('/patient/:id', controller.getByPatient); 
+router.put('/update/:id', controller.updateFamilyHistory);
+router.delete('/delete/:id', controller.deleteFamilyHistory);
 
 module.exports = router;

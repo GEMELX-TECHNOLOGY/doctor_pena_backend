@@ -1,18 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const recetaController = require('../controllers/prescriptionController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const controller = require('../controllers/prescriptionController');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
-router.use(verificarYRenovarToken);
+router.use(verifyAndRenewToken);
 
-// Crear receta solo doctor
-router.post('/register', recetaController.createPrescription);
-
-// Ver receta por consulta doc y paciente
-router.get('/obtener/consulta/:id', recetaController.getPrescriptionByConsultation);
-
-// Obtener receta completa para impresión doc y paciente
-router.get('/obtener/consulta/:id/imprimir', recetaController.getPrescriptionDataForPrinting);
-
+// Doctor only
+router.post('/register', controller.createPrescription);
+router.get('/consultation/:id', controller.getPrescriptionByConsultation); 
+router.get('/consultation/:id/print', controller.getPrescriptionDataForPrinting); 
 
 module.exports = router;

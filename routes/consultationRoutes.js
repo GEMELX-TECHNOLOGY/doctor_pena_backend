@@ -1,19 +1,17 @@
-
 const express = require('express');
 const router = express.Router();
-const consultaController = require('../controllers/consultationController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const controller = require('../controllers/consultationController');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
-router.use(verificarYRenovarToken);
+router.use(verifyAndRenewToken);
 
-//  para el doctor web
-router.post('/register', consultaController.createConsultation);
-router.get('/obtener', consultaController.getAllConsultations);
-router.get('/obtener/:id', consultaController.getConsultationById);
-router.put('/pagar/:id', consultaController.markAsPaid);
+// For web doctor
+router.post('/register', controller.createConsultation);
+router.get('/', controller.getAllConsultations); 
+router.get('/:id', controller.getConsultationById); 
+router.put('/:id/pay', controller.markAsPaid); 
 
-
-// Para el paciente app movil
-router.get('/paciente/:id', consultaController.getConsultationsByPatient);
+// For mobile patient
+router.get('/patient/:id', controller.getConsultationsByPatient); 
 
 module.exports = router;

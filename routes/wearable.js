@@ -3,7 +3,7 @@ const router = express.Router();
 const { admin, db } = require('../config/firebase');
 const mysql = require('../config/db.sql');
 const { queryHuggingFace } = require('../utils/huggingfaceClient');
-const jwt = require('jsonwebtoken'); // Importamos JWT
+const jwt = require('jsonwebtoken'); 
 
 // Middleware de autenticación 
 const authenticateWearable = async (req, res, next) => {
@@ -17,33 +17,20 @@ const authenticateWearable = async (req, res, next) => {
         // Verificar token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
-        
         if (decoded.role !== 'paciente') {
             return res.status(403).json({ error: 'Solo pacientes pueden subir datos de sensores' });
         }
 
-        // Obtener registration_number
-        let registration_number = decoded.registration_number;
-        
-        // Si no está en el token, buscarlo en la bd
-        if (!registration_number) {
-            const [patients] = await mysql.query(
-                'SELECT registration_number FROM Patients WHERE user_id = ?',
-                [decoded.userId]
-            );
-            
-            if (patients.length === 0) {
-                return res.status(404).json({ error: 'Paciente no encontrado' });
-            }
-            
-            registration_number = patients[0].registration_number;
+        // Requerir registration_number en el token
+        if (!decoded.registration_number) {
+            return res.status(400).json({ error: 'Token inválido: falta registration_number' });
         }
 
         // Adjuntar información al req
         req.user = {
             userId: decoded.userId,
             role: decoded.role,
-            registration_number
+            registration_number: decoded.registration_number
         };
 
         next();

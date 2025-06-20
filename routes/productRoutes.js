@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const productosController = require('../controllers/productController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const controller = require('../controllers/productController');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
-router.use(verificarYRenovarToken);
+router.use(verifyAndRenewToken);
 
-router.post('/register', productosController.createProduct);
-router.get('/', productosController.getAllProducts);
-router.get('/:id', productosController.getProductById);
-router.put('/update/:id', productosController.updateProduct);
-router.delete('/delete/:id', productosController.deleteProduct);
+router.post('/register', controller.createProduct);
+router.get('/', controller.getAllProducts);
+router.get('/:id', controller.getProductById);
+router.put('/update/:id', controller.updateProduct);
+router.delete('/delete/:id', controller.deleteProduct);
 
 module.exports = router;

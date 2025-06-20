@@ -1,81 +1,78 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { generarAlertasAutomaticas } = require('./utils/alertasAuto');
-generarAlertasAutomaticas();
+const { generateAutomaticAlerts } = require('./utils/alertasAuto'); 
+generateAutomaticAlerts();
 
-// BD
-const { connectMySQL } = require('./config/db.sql'); // Conexión a MySQL
+// DB
+const { connectMySQL } = require('./config/db.sql');
 
-
-// rutas
+// Routes
 const authRoutes = require('./routes/authRoutes');
-const pacienteRoutes = require('./routes/patientRoutes');
-const verificarYRenovarToken = require('./middlewares/authMiddleware');
-const medicoRoutes = require('./routes/doctorRoutes');
-const consultaRoutes = require('./routes/consultationRoutes');
-const citaRoutes = require('./routes/appointmentRoutes');
-const signosRoutes = require('./routes/vitalSignsRoutes');
-const recetaRoutes = require('./routes/prescriptionRoutes');
+const patientRoutes = require('./routes/patientRoutes'); 
+const verifyAndRenewToken = require('./middlewares/authMiddleware');
+const doctorRoutes = require('./routes/doctorRoutes'); 
+const consultationRoutes = require('./routes/consultationRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes'); 
+const vitalSignsRoutes = require('./routes/vitalSignsRoutes'); 
+const prescriptionRoutes = require('./routes/prescriptionRoutes'); 
 const vaccineRoutes = require('./routes/vaccineRoutes');
-const antecedenteRoutes = require('./routes/familyHistoryRoutes');
-const historialRoutes = require('./routes/historyRoutes');
-const productosRoutes = require('./routes/productRoutes');
-const medRecetadosRoutes = require('./routes/prescribedMedicationRoutes');
-const documentosRoutes = require('./routes/documentRoutes');
-const alertasRoutes = require('./routes/alertRoutes');
-const ventaRoutes = require('./routes/saleRoutes');
+const familyHistoryRoutes = require('./routes/familyHistoryRoutes'); 
+const historyRoutes = require('./routes/historyRoutes');
+const productRoutes = require('./routes/productRoutes'); 
+const prescribedMedsRoutes = require('./routes/prescribedMedicationRoutes');
+const documentRoutes = require('./routes/documentRoutes'); 
+const alertRoutes = require('./routes/alertRoutes');
+const saleRoutes = require('./routes/saleRoutes'); 
 const wearableRoutes = require('./routes/wearable');
 
-// instancia de Express
 const app = express();
 
-// Middlewares básicos
 app.use(cors());
 app.use(express.json());
 
-// Conexiones a BD 
 try {
-  connectMySQL(); 
-  console.log('✅ Conectado a MySQL');
-  // Firebase ya se conectó al importar 'db'
+  connectMySQL();
+  console.log('✅ Connected to MySQL');
 } catch (err) {
-  console.error('Error al conectar a las bases de datos:', err);
-  process.exit(1); // Salir si no podemos conectar a las DBs
+  console.error('Database connection error:', err);
+  process.exit(1);
 }
 
-
-
-// Rutas
+//  route paths
 app.use('/api/auth', authRoutes);
-app.use('/api/pacientes', verificarYRenovarToken, pacienteRoutes);
-app.use('/api/medicos', medicoRoutes);
-app.use('/api/consultas', consultaRoutes);
-app.use('/api/citas', citaRoutes);
-app.use('/api/signos-vitales', signosRoutes);
-app.use('/api/recetas', recetaRoutes);
-app.use('/api/vacunas', vaccineRoutes);
-app.use('/api/antecedentes', antecedenteRoutes);
-app.use('/api/historial', historialRoutes);
-app.use('/api/productos', productosRoutes);
-app.use('/api/med-recetados', medRecetadosRoutes);
-app.use('/api/documentos', documentosRoutes);
-app.use('/api/alertas', alertasRoutes);
-app.use('/api/ventas', ventaRoutes);
+app.use('/api/patients', verifyAndRenewToken, patientRoutes);
+app.use('/api/doctors', doctorRoutes);
+app.use('/api/consultations', consultationRoutes);
+app.use('/api/appointments', appointmentRoutes);
+app.use('/api/vital-signs', vitalSignsRoutes);
+app.use('/api/prescriptions', prescriptionRoutes);
+app.use('/api/vaccines', vaccineRoutes);
+app.use('/api/family-history', familyHistoryRoutes);
+app.use('/api/history', historyRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/prescribed-medications', prescribedMedsRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/alerts', alertRoutes);
+app.use('/api/sales', saleRoutes);
 app.use('/api/wearable', wearableRoutes);
 
 app.use((err, req, res, _next) => {
   console.error(err.stack);
-  res.status(500).json({
-    error: 'Error interno del servidor',
-    message: err.message,
-  });
+  res.status(500).json({ error: 'Internal server error', message: err.message });
 });
 
-
-// server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-  console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  
+  if (process.env.ENABLE_MQTT === 'true') {
+    try {
+      require('./mqtt');
+      console.log('✅ MQTT client started');
+    } catch (err) {
+      console.error('❌ MQTT startup error:', err);
+    }
+  }
 });

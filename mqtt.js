@@ -19,36 +19,56 @@ client.on('connect', () => {
 
 client.on('message', async (topic, message) => {
     try {
-        const data = JSON.parse(message.toString());
-        console.log(' Datos recibidos:', data);
-
-        // Verificar estructura del mensaje
-        if (!data.token || !data.sensors) {
-            return console.warn(' Estructura de mensaje inválida');
+        const rawData = message.toString();
+        console.log('Mensaje RAW:', rawData);
+        
+        let data;
+        try {
+            data = JSON.parse(rawData);
+        } catch {
+            return console.warn('Mensaje no es JSON válido');
         }
 
-        const payload = {
-            registration_number: null, 
-            heart_rate: parseFloat(data.sensors.bpm),
-            oxygenation: parseFloat(data.sensors.spo2),
-            temperature: parseFloat(data.sensors.temp)
+        console.log('Datos recibidos:', data);
+
+        // Verificar estructura mínima
+        if (!data.token || typeof data.sensors !== 'object') {
+            return console.warn('Falta token o datos de sensores');
+        }
+
+        // Función para limpiar valores
+        const cleanValue = (val) => {
+            if (val === '---' || val === -1) return null;
+            return parseFloat(val);
         };
 
+        const bpm = cleanValue(data.sensors.bpm);
+        const spo2 = cleanValue(data.sensors.spo2);
+        const temp = cleanValue(data.sensors.temp);
+
         // Validar datos
-        if (isNaN(payload.heart_rate) || isNaN(payload.oxygenation) || isNaN(payload.temperature)) {
-            return console.warn(' Datos de sensores inválidos');
+        if ([bpm, spo2, temp].some(val => val === null)) {
+            return console.warn('Datos incompletos o inválidos');
         }
 
+        // Payload
+        const payload = {
+            heart_rate: bpm,
+            oxygenation: spo2,
+            temperature: temp
+        };
+
         console.log('Enviando al backend:', payload);
+        
         const response = await axios.post(BACKEND_URL, payload, {
             headers: {
                 Authorization: `Bearer ${data.token}`
             }
         });
         
-        console.log(' Respuesta del backend:', response.data.message || 'OK');
-
-    } catch (error) {
+        console.log('Respuesta del backend:', response.data.message || 'OK');
+    } 
+    catch (error) {
         console.error(' Error procesando mensaje:', error.message);
         
         if (error.response) {

@@ -1,20 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/documentController');
-const verificarYRenovarToken = require('../middlewares/authMiddleware');
+const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
-router.use(verificarYRenovarToken);
+router.use(verifyAndRenewToken);
 
-router.post('/subir', controller.uploadDocument);
-router.get('/paciente/:id', controller.getByPatient);
+router.post('/upload', controller.uploadDocument);
+router.get('/patient/:id', controller.getByPatient); 
 router.delete('/:id', controller.deleteDocument);
-router.get('/:id/ver', controller.viewAndMarkAsRead);
-//por id
-router.get('/leidos/:id', controller.getReadDocuments);
-router.get('/pendientes/:id', controller.getPendingDocuments);
-//general
-router.get('/leidos', controller.getAllReadDocuments);
-router.get('/pendientes', controller.getAllPendingDocuments);
-
+router.get('/:id/view', controller.viewAndMarkAsRead); 
+router.get('/:id/read', controller.getReadDocuments); 
+router.get('/:id/pending', controller.getPendingDocuments); 
+router.get('/all/read', controller.getAllReadDocuments);
+router.get('/all/pending', controller.getAllPendingDocuments); 
 
 module.exports = router;
