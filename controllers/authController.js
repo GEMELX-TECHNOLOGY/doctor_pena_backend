@@ -350,14 +350,13 @@ exports.registerPatientApp = async (req, res) => {
             return res.status(400).json({ error: 'Se requiere el número de matrícula para el registro' });
         }
 
-      
         const [patientRows] = await query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
         if (patientRows.length === 0) {
             return res.status(404).json({ error: 'Matrícula no encontrada en el sistema' });
         }
 
         const patient = patientRows[0];
-        if (patient.usuario_id) {  
+        if (patient.usuario_id) {
             return res.status(400).json({ error: 'Esta matrícula ya está asociada a un usuario' });
         }
 
@@ -368,14 +367,16 @@ exports.registerPatientApp = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // Si hay imagen, guardarla
+        const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
+
         const [userResult] = await query(`
-            INSERT INTO Users (role, email, phone, password_hash, status)
-            VALUES (?, ?, ?, ?, 'activo')
-        `, [role, email, phone, hashedPassword]);
+            INSERT INTO Users (role, email, phone, password_hash, status, profile_picture)
+            VALUES (?, ?, ?, ?, 'activo', ?)
+        `, [role, email, phone, hashedPassword, profilePicture]);
 
         const newUserId = userResult.insertId;
 
-        
         await query('UPDATE Patients SET user_id = ? WHERE id = ?', [newUserId, patient.id]);
 
         const token = jwt.sign(
@@ -389,14 +390,15 @@ exports.registerPatientApp = async (req, res) => {
             message: 'Registro completado exitosamente',
             user_id: newUserId,
             patient_id: patient.id,
-            token
+            token,
+            profile_picture: profilePicture //devolver URL en respuesta
         });
 
     } catch (error) {
         console.error('Error en registro de paciente:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Error interno del servidor durante el registro',
-            detail: error.message 
+            detail: error.message
         });
     }
 };
