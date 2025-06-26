@@ -1,12 +1,11 @@
 async function queryHuggingFace(prompt) {
-  
   const { InferenceClient } = await import('@huggingface/inference');
 
   const client = new InferenceClient(process.env.HUGGINGFACE_API_KEY);
 
   const response = await client.chatCompletion({
     provider: "novita",
-    model: "deepseek-ai/DeepSeek-R1-0528-Qwen3-8B",
+    model: "meta-llama/Meta-Llama-3-70B-Instruct",
     messages: [
       {
         role: "user",
@@ -15,7 +14,8 @@ async function queryHuggingFace(prompt) {
     ],
   });
 
-  return response.choices[0].message.content; 
+  // Devuelve directamente el mensaje generado por la IA
+  return response.choices[0].message.content;
 }
 
 module.exports = { queryHuggingFace };

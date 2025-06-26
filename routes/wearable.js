@@ -5,7 +5,7 @@ const mysql = require('../config/db.sql');
 const { queryHuggingFace } = require('../utils/huggingfaceClient');
 const jwt = require('jsonwebtoken'); 
 
-// Middleware de autenticación 
+
 const authenticateWearable = async (req, res, next) => {
     try {
         const token = req.headers.authorization?.split(' ')[1];
@@ -14,19 +14,16 @@ const authenticateWearable = async (req, res, next) => {
             return res.status(401).json({ error: 'Acceso no autorizado' });
         }
 
-        // Verificar token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
         if (decoded.role !== 'paciente') {
             return res.status(403).json({ error: 'Solo pacientes pueden subir datos de sensores' });
         }
 
-        // Requerir registration_number en el token
         if (!decoded.registration_number) {
             return res.status(400).json({ error: 'Token inválido: falta registration_number' });
         }
 
-        // Adjuntar información al req
         req.user = {
             userId: decoded.userId,
             role: decoded.role,
@@ -51,23 +48,28 @@ const authenticateWearable = async (req, res, next) => {
 
 async function generarMensajePersonalizado(historial, signosVitales) {
   const prompt = `
-   Eres un asistente médico. El objetivo es brindar recomendaciones personalizadas al paciente según sus signos vitales actuales y su historial de alertas previas.
+  Eres un asistente médico. Tu única función es analizar signos vitales de pacientes y brindar orientación de salud personalizada. 
+   Nunca respondas con código de programación, matemáticas ni otro tema ajeno a la medicina.
 
-   1. Explica si los signos vitales están fuera del rango normal.
-   2. Informa con lenguaje sencillo si hay un riesgo para la salud.
-   3. Da al menos 2 recomendaciones claras para el paciente.
-   4. Si es grave, sugiere buscar atención médica inmediata.
+  Tu tarea:
 
-   Historial reciente de alertas del paciente:
-   ${historial}
+  1. Explica si los signos vitales están fuera del rango normal.
+  2. Informa con lenguaje sencillo si hay un riesgo para la salud.
+  3. Da al menos 2 recomendaciones claras para el paciente.
+  4. Si es grave, sugiere buscar atención médica inmediata.
 
-   Signos vitales actuales del paciente:
-   Frecuencia cardíaca: ${signosVitales.heart_rate} bpm
-   Oxigenación: ${signosVitales.oxygenation}%
-   Temperatura: ${signosVitales.temperature} °C
+  Historial reciente de alertas del paciente:
+  ${historial}
 
-    Escribe el mensaje directamente para el paciente:
-  `;
+  Signos vitales actuales del paciente:
+  Frecuencia cardíaca: ${signosVitales.heart_rate} bpm
+  Oxigenación: ${signosVitales.oxygenation}%
+  Temperatura: ${signosVitales.temperature} °C
+
+  Escribe un mensaje directamente al paciente (sin temas técnicos ni código):
+ `;
+
+  
 
   try {
     const mensaje = await queryHuggingFace(prompt);
@@ -85,12 +87,8 @@ const analizarSignosVitales = ({ heart_rate, oxygenation, temperature }) => {
   return 'normal';
 };
 
-// Aplicar middleware a la ruta
 router.post('/upload', authenticateWearable, async (req, res) => {
-    // Usar el registration_number del usuario autenticado
     const registration_number = req.user.registration_number;
-    
-    // Obtener los datos del cuerpo de la solicitud
     const { heart_rate, oxygenation, temperature } = req.body;
 
     console.log(' Datos recibidos:', { 
@@ -101,7 +99,6 @@ router.post('/upload', authenticateWearable, async (req, res) => {
     });
 
     try {
-        // Buscar paciente por registration_number 
         const [rows] = await mysql.query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
         if (rows.length === 0) {
             return res.status(404).json({ error: 'Paciente no encontrado en la base de datos MySQL' });
@@ -150,9 +147,17 @@ router.post('/upload', authenticateWearable, async (req, res) => {
 
         console.log(" Guardando en Firebase:", newData);
 
+        // Guardar en colección WearableData
         await db.collection('WearableData').add(newData)
-            .then(ref => {
+            .then(async (ref) => {
                 console.log(" Documento agregado con ID:", ref.id);
+
+                // Guardar  en la colección Historial
+                await db.collection('Historial').add({
+                    ...newData,
+                    wearableDataRef: ref.id
+                });
+
                 res.json({
                     message: 'Datos guardados correctamente en Firestore',
                     data: newData,
