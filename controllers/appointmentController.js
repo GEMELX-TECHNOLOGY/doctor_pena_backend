@@ -281,3 +281,46 @@ exports.updateAppointmentStatus = async (req, res) => {
     res.status(500).json({ error: 'Error actualizando status' });
   }
 };
+// Obtener la proxima cita del pacientee
+exports.getNextAppointmentByPatient = async (req, res) => {
+  try {
+    const [rows] = await query(
+      `SELECT * FROM Appointments 
+       WHERE patient_id = ? AND status IN ('pendiente', 'confirmada', 'reprogramada') AND date_time > NOW()
+       ORDER BY date_time ASC 
+       LIMIT 1`,
+      [req.params.id]
+    );
+
+    if (rows.length === 0) {
+      return res.json({ success: true, appointment: null });
+    }
+
+    res.json({ success: true, appointment: rows[0] });
+  } catch (err) {
+    console.error('Error al obtener próxima cita del paciente:', err);
+    res.status(500).json({ error: 'Error al obtener próxima cita del paciente' });
+  }
+};
+//obtener proxima cita del doctor
+exports.getNextAppointmentByDoctor = async (req, res) => {
+  try {
+    const [rows] = await query(
+      `SELECT A.*, P.first_name, P.last_name 
+       FROM Appointments A
+       JOIN Patients P ON A.patient_id = P.id
+       WHERE A.status IN ('pendiente', 'confirmada', 'reprogramada') AND A.date_time > NOW()
+       ORDER BY A.date_time ASC 
+       LIMIT 1`
+    );
+
+    if (rows.length === 0) {
+      return res.json({ success: true, appointment: null });
+    }
+
+    res.json({ success: true, appointment: rows[0] });
+  } catch (err) {
+    console.error('Error al obtener próxima cita del doctor:', err);
+    res.status(500).json({ error: 'Error al obtener próxima cita del doctor' });
+  }
+};

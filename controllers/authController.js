@@ -5,7 +5,7 @@ const { query } = require('../config/db.sql');
 const { generateRecoveryToken } = require('../utils/helpers');
 const { generateCustomId } = require('../utils/helpers');
 const { sendPasswordResetEmail } = require('../services/emailService');
-
+const {calculateAge} = require('../utils/helpers')
 // Roles permitidos para web y app
 const webRoles = ['medico', 'admin'];
 const appRoles = ['paciente', 'medico', 'admin'];
@@ -177,11 +177,15 @@ exports.login = async (req, res) => {
             { expiresIn: '1h' }
         );
 
-        // 7. Respuesta exitosa
-        res.json({ 
-            token,
-            
-        });
+        // Respuesta exitosa
+          
+          res.json({ 
+               token,
+              ...(user.role === 'paciente' && payload.registration_number
+             ? { registration_number: payload.registration_number }
+             : {})
+            });
+
 
     } catch (error) {
         console.error('Error en inicio de sesión:', error);
@@ -468,5 +472,194 @@ exports.deactivatePatientAccount = async (req, res) => {
   } catch (err) {
     console.error('Error al desactivar cuenta de paciente:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+//obtener TODA la info del usuario:
+exports.getPatientFullInfo = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const role = req.user.role;
+
+    if (role !== 'paciente') {
+      return res.status(403).json({ error: 'Solo los pacientes pueden acceder a esta información' });
+    }
+
+    //  Obtener información básica del usuario
+    const [userData] = await query('SELECT * FROM Users WHERE id = ?', [userId]);
+    if (userData.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const user = userData[0];
+
+    //  Obtener información del paciente
+    const [patientData] = await query('SELECT * FROM Patients WHERE user_id = ?', [userId]);
+    if (patientData.length === 0) {
+      return res.status(404).json({ error: 'Paciente no encontrado' });
+    }
+
+    const patient = patientData[0];
+    const patientId = patient.id;
+
+    //  Obtener información  segun el tipo de paciente
+    let patientSpecificData = {};
+    
+    switch (patient.patient_type) {
+      case 'bebe': {
+        const [babyData] = await query('SELECT * FROM BabyData WHERE patient_id = ?', [patientId]);
+        patientSpecificData = {
+          type: 'baby',
+          data: babyData[0] || {}
+        };
+        break;
+      }
+      case 'nino': {
+        const [childData] = await query('SELECT * FROM ChildData WHERE patient_id = ?', [patientId]);
+        patientSpecificData = {
+          type: 'child',
+          data: childData[0] || {}
+        };
+        break;
+      }
+      case 'adolescente': {
+        const [adolescentData] = await query('SELECT * FROM AdolescentData WHERE patient_id = ?', [patientId]);
+        patientSpecificData = {
+          type: 'adolescent',
+          data: adolescentData[0] || {}
+        };
+        break;
+      }
+      case 'mujer_reproductiva': {
+        const [womanData] = await query('SELECT * FROM ReproductiveWomanData WHERE patient_id = ?', [patientId]);
+        patientSpecificData = {
+          type: 'reproductive_woman',
+          data: womanData[0] || {}
+        };
+        break;
+      }
+      case 'adulto': {
+        const [adultData] = await query('SELECT * FROM AdultData WHERE patient_id = ?', [patientId]);
+        patientSpecificData = {
+          type: 'adult',
+          data: adultData[0] || {}
+        };
+        break;
+      }
+      default: {
+        patientSpecificData = {
+          type: 'unknown',
+          data: {}
+        };
+      }
+    }
+
+    // Obtener antecedentes fam
+    const [familyHistory] = await query('SELECT * FROM FamilyHistory WHERE patient_id = ?', [patientId]);
+
+    //  Obtener documentos
+    const [documents] = await query(`
+      SELECT id, type, file_path, notes, status, date 
+      FROM Documents 
+      WHERE patient_id = ?
+      ORDER BY date DESC
+    `, [patientId]);
+
+    // Obtener consultas medicas
+    const [consultations] = await query(`
+      SELECT c.* 
+      FROM Consultations c
+      WHERE c.patient_id = ?
+      ORDER BY c.date DESC
+    `, [patientId]);
+
+    // Obtener citas
+    const [appointments] = await query(`
+      SELECT a.*, 
+             CONCAT(p.first_name, ' ', p.last_name) AS patient_name
+      FROM Appointments a
+      JOIN Patients p ON a.patient_id = p.id
+      WHERE a.patient_id = ?
+      ORDER BY a.date_time DESC
+    `, [patientId]);
+
+    //  Obtener vacunas
+    let vaccines = [];
+    if (patient.patient_type === 'bebe' || patient.patient_type === 'nino') {
+      const [vaccineData] = await query(`
+        SELECT * FROM Vaccines 
+        WHERE patient_id = ?
+        ORDER BY application_date DESC
+      `, [patientId]);
+      vaccines = vaccineData;
+    }
+
+    // Obtener historial de cambios
+    const [changeHistory] = await query(`
+     SELECT h.*, 
+         u.email AS modified_by_email
+    FROM PatientChangeHistory h
+    LEFT JOIN Users u ON h.modified_by = u.id
+    WHERE h.patient_id = ?
+    ORDER BY h.modification_date DESC
+   `, [patientId]);
+
+    //  Obtener signos vitales de las consultas
+    const consultationsWithVitals = await Promise.all(
+      consultations.map(async (consultation) => {
+        const [vitalSigns] = await query(`
+          SELECT * FROM VitalSigns 
+          WHERE consultation_id = ?
+        `, [consultation.id]);
+        
+        return {
+          ...consultation,
+          vital_signs: vitalSigns[0] || null
+        };
+      })
+    );
+
+    // Estructurar todos los datos en un solo objeto
+    const fullPatientInfo = {
+      user: {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        status: user.status,
+        profile_picture: user.profile_picture,
+        last_access: user.last_access,
+        created_at: user.created_at
+      },
+      patient: {
+        ...patient,
+        age: calculateAge(patient.birth_date),
+        full_name: `${patient.first_name} ${patient.last_name}`
+      },
+      patient_type_data: patientSpecificData,
+      family_history: familyHistory,
+      documents: documents,
+      consultations: consultationsWithVitals,
+      appointments: appointments,
+      vaccines: vaccines,
+      change_history: changeHistory,
+      stats: {
+        total_consultations: consultations.length,
+        total_appointments: appointments.length,
+        last_consultation: consultations[0]?.date || null,
+        next_appointment: appointments.find(a => new Date(a.date_time) > new Date())?.date_time || null
+      }
+    };
+
+    res.json({
+      success: true,
+      data: fullPatientInfo
+    });
+
+  } catch (error) {
+    console.error('Error al obtener información completa del paciente:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor al obtener información del paciente',
+      detail: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 };

@@ -13,4 +13,7 @@ router.put('/update/:id/cancel', controller.cancelAppointment);
 router.put('/update/:id/status', controller.updateAppointmentStatus); 
 router.put('/update/:id/complete', controller.markAsCompleted); 
 
+router.get('/next/patient/:id', controller.getNextAppointmentByPatient);
+router.get('/next/doctor', controller.getNextAppointmentByDoctor);
+
 module.exports = router;

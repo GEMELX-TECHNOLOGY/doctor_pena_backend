@@ -5,7 +5,7 @@ const verifyAndRenewToken = require('../middlewares/authMiddleware');
 
 router.use(verifyAndRenewToken);
 
-router.post('/upload', controller.uploadDocument);
+router.post('/upload', controller.uploadDocument); //formulario de de paciente, titulo,descip,archivo
 router.get('/patient/:id', controller.getByPatient); 
 router.delete('/:id', controller.deleteDocument);
 router.get('/:id/view', controller.viewAndMarkAsRead); 
@@ -13,5 +13,7 @@ router.get('/:id/read', controller.getReadDocuments);
 router.get('/:id/pending', controller.getPendingDocuments); 
 router.get('/all/read', controller.getAllReadDocuments);
 router.get('/all/pending', controller.getAllPendingDocuments); 
+
+
 
 module.exports = router;

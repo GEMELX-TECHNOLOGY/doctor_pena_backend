@@ -19,4 +19,6 @@ router.delete('/patient/deactivate-account', verifyAndRenewToken, controller.dea
 router.post('/refresh-token', controller.refreshToken);
 router.put('/admin/update-credentials', verifyAndRenewToken, controller.updateAdminCredentials); 
 
+//get users: datos del paciente 
+router.get('/patient/full-info', verifyAndRenewToken, controller.getPatientFullInfo);
 module.exports = router;
