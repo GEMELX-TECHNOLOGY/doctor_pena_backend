@@ -1,14 +1,15 @@
 const { query } = require('../config/db.sql');
 
+
 // Subir un nuevo documento
 exports.uploadDocument = async (req, res) => {
   try {
-    const { patient_id, type, file_path, notes, status } = req.body;
+    const { patient_id, title, description, type, file_path, notes, status } = req.body;
 
     await query(
-      `INSERT INTO Documents (patient_id, type, file_path, notes, status) 
-       VALUES (?, ?, ?, ?, ?)`,
-      [patient_id, type, file_path, notes, status]
+      `INSERT INTO Documents (patient_id, title, description, type, file_path, notes, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [patient_id, title, description, type, file_path, notes, status]
     );
 
     res.status(201).json({ 
@@ -22,6 +23,7 @@ exports.uploadDocument = async (req, res) => {
     });
   }
 };
+
 
 // Obtener documentos por paciente
 exports.getByPatient = async (req, res) => {
