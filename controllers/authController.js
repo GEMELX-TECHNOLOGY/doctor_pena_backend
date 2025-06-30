@@ -346,65 +346,74 @@ exports.updateAdminCredentials = async (req, res) => {
 
 // Función para registrar paciente desde la app
 exports.registerPatientApp = async (req, res) => {
-    try {
-        const { email, password, phone, registration_number } = req.body;
-        const role = 'paciente';  // Rol fijo para este tipo de registro
+  try {
+    const { email, password, phone, registration_number } = req.body;
 
-        if (!registration_number) {
-            return res.status(400).json({ error: 'Se requiere el número de matrícula para el registro' });
-        }
-
-        const [patientRows] = await query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
-        if (patientRows.length === 0) {
-            return res.status(404).json({ error: 'Matrícula no encontrada en el sistema' });
-        }
-
-        const patient = patientRows[0];
-        if (patient.usuario_id) {
-            return res.status(400).json({ error: 'Esta matrícula ya está asociada a un usuario' });
-        }
-
-        const [existingUsers] = await query('SELECT * FROM Users WHERE email = ?', [email]);
-        if (existingUsers.length > 0) {
-            return res.status(409).json({ error: 'El correo electrónico ya está registrado' });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        // Si hay imagen, guardarla
-        const profilePicture = req.file ? `/uploads/${req.file.filename}` : null;
-
-        const [userResult] = await query(`
-            INSERT INTO Users (role, email, phone, password_hash, status, profile_picture)
-            VALUES (?, ?, ?, ?, 'activo', ?)
-        `, [role, email, phone, hashedPassword, profilePicture]);
-
-        const newUserId = userResult.insertId;
-
-        await query('UPDATE Patients SET user_id = ? WHERE id = ?', [newUserId, patient.id]);
-
-        const token = jwt.sign(
-            { userId: newUserId, role },
-            process.env.JWT_SECRET,
-            { expiresIn: '1h' }
-        );
-
-        res.status(201).json({
-            success: true,
-            message: 'Registro completado exitosamente',
-            user_id: newUserId,
-            patient_id: patient.id,
-            token,
-            profile_picture: profilePicture //devolver URL en respuesta
-        });
-
-    } catch (error) {
-        console.error('Error en registro de paciente:', error);
-        res.status(500).json({
-            error: 'Error interno del servidor durante el registro',
-            detail: error.message
-        });
+    // Validar campos obligatorios
+    if (!email || !password || !phone || !registration_number) {
+      return res.status(400).json({ error: 'Faltan campos obligatorios' });
     }
+
+    // Verificar que la matrícula exista en Patients
+    const [patientRows] = await query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
+    if (patientRows.length === 0) {
+      return res.status(404).json({ error: 'Matrícula no encontrada en el sistema' });
+    }
+
+    const patient = patientRows[0];
+
+    // Verificar si la matrícula ya está asociada a un usuario
+    if (patient.user_id) {
+      return res.status(400).json({ error: 'Esta matrícula ya está asociada a un usuario' });
+    }
+
+    // Verificar si el correo ya está registrado
+    const [existingUsers] = await query('SELECT * FROM Users WHERE email = ?', [email]);
+    if (existingUsers.length > 0) {
+      return res.status(409).json({ error: 'El correo electrónico ya está registrado' });
+    }
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Obtener URL de la foto de perfil subida 
+    const profilePictureUrl = req.file?.path || null;
+
+    // Insertar nuevo usuario con rol 'paciente'
+    const [userResult] = await query(`
+      INSERT INTO Users (role, email, phone, password_hash, status, profile_picture)
+      VALUES (?, ?, ?, ?, 'activo', ?)
+    `, ['paciente', email, phone, hashedPassword, profilePictureUrl]);
+
+    const newUserId = userResult.insertId;
+
+    // Actualizar paciente para asociar con nuevo usuario
+    await query('UPDATE Patients SET user_id = ? WHERE id = ?', [newUserId, patient.id]);
+
+    // Generar token JWT
+    const token = jwt.sign(
+      { userId: newUserId, role: 'paciente' },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    // Responder  y datos útiles
+    res.status(201).json({
+      success: true,
+      message: 'Registro completado exitosamente',
+      user_id: newUserId,
+      patient_id: patient.id,
+      token,
+      profile_picture: profilePictureUrl
+    });
+
+  } catch (error) {
+    console.error('Error en registro de paciente:', error);
+    res.status(500).json({
+      error: 'Error interno del servidor durante el registro',
+      detail: error.message
+    });
+  }
 };
 
 // Función para actualizar credenciales de paciente

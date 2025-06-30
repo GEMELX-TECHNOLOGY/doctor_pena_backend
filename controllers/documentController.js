@@ -1,9 +1,16 @@
 const { query } = require('../config/db.sql');
 
-// Subir un nuevo documento
+
+
+// Subir un nuevo documento a Cloudinary
 exports.uploadDocument = async (req, res) => {
   try {
-    const { patient_id, title, description, type, file_path, notes, status } = req.body;
+    const { patient_id, title, description, type, notes, status } = req.body;
+    const file_path = req.file?.path;
+
+    if (!file_path) {
+      return res.status(400).json({ error: 'Archivo no proporcionado' });
+    }
 
     await query(
       `INSERT INTO Documents (patient_id, title, description, type, file_path, notes, status) 
@@ -13,7 +20,8 @@ exports.uploadDocument = async (req, res) => {
 
     res.status(201).json({ 
       success: true, 
-      message: 'Documento subido exitosamente' 
+      message: 'Documento subido exitosamente',
+      file_url: file_path
     });
   } catch (error) {
     console.error('Error al subir documento:', error);
