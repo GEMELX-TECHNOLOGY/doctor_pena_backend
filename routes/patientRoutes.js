@@ -7,7 +7,8 @@ router.use(verifyAndRenewToken);
 
 router.post('/register', controller.registerPatientWeb); 
 router.get('/', controller.getAllPatients);
-router.get('/:id', controller.getPatientById);
-router.put('/update/:id', controller.updatePatient);
+router.get('/:registration_number', controller.getPatientByRegistrationNumber);
+router.put('/update/:registration_number', controller.updatePatientByRegistrationNumber);
+
 
 module.exports = router;

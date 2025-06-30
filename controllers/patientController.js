@@ -177,66 +177,149 @@ exports.getAllPatients = async (req, res) => {
   }
 };
 
-// Obtener paciente por ID
-exports.getPatientById = async (req, res) => {
+
+// Eliminar paciente
+exports.deletePatient = async (req, res) => {
   try {
     const { id } = req.params;
-    const [result] = await query('SELECT * FROM Patients WHERE id = ?', [id]);
+    await query('DELETE FROM Patients WHERE id = ?', [id]);
 
+    res.json({ 
+      success: true, 
+      message: 'Paciente eliminado exitosamente' 
+    });
+  } catch (error) {
+    console.error('Error al eliminar paciente:', error);
+    res.status(500).json({ error: 'Error al eliminar el paciente' });
+  }
+};
+exports.getPatientByRegistrationNumber = async (req, res) => {
+  try {
+    const { registration_number } = req.params;
+
+    const [result] = await query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
     if (result.length === 0) {
       return res.status(404).json({ error: 'Paciente no encontrado' });
     }
 
-    res.json({ success: true, patient: result[0] });
+    const patient = result[0];
+    const patientType = patient.patient_type;
+    const patientId = patient.id;
+
+    // Separar alergias en un arreglo
+    const allergyList = patient.allergies
+      ? patient.allergies.split(',').map(a => a.trim()).filter(a => a !== '')
+      : [];
+
+    //  Datos adicionales por tipo de paciente
+    let extraData = [];
+    let vaccines = [];
+
+    switch (patientType) {
+      case 'bebe': {
+        const [babyData] = await query('SELECT * FROM BabyData WHERE patient_id = ?', [patientId]);
+        if (babyData.length) extraData.push({ type: 'bebe', data: babyData[0] });
+
+        const [babyVaccines] = await query('SELECT * FROM Vaccines WHERE patient_id = ?', [patientId]);
+        vaccines = babyVaccines;
+        break;
+      }
+      case 'nino': {
+        const [childData] = await query('SELECT * FROM ChildData WHERE patient_id = ?', [patientId]);
+        if (childData.length) extraData.push({ type: 'nino', data: childData[0] });
+
+        const [childVaccines] = await query('SELECT * FROM Vaccines WHERE patient_id = ?', [patientId]);
+        vaccines = childVaccines;
+        break;
+      }
+      case 'adolescente': {
+        const [adolescentData] = await query('SELECT * FROM AdolescentData WHERE patient_id = ?', [patientId]);
+        if (adolescentData.length) extraData.push({ type: 'adolescente', data: adolescentData[0] });
+        break;
+      }
+      case 'mujer_reproductiva': {
+        const [reproductiveData] = await query('SELECT * FROM ReproductiveWomanData WHERE patient_id = ?', [patientId]);
+        if (reproductiveData.length) extraData.push({ type: 'mujer_reproductiva', data: reproductiveData[0] });
+        break;
+      }
+      case 'adulto': {
+        const [adultData] = await query('SELECT * FROM AdultData WHERE patient_id = ?', [patientId]);
+        if (adultData.length) extraData.push({ type: 'adulto', data: adultData[0] });
+        break;
+      }
+    }
+
+    //  Signos vitales
+    const [vitalSigns] = await query(`
+     SELECT VS.*, C.date AS consultation_date
+     FROM VitalSigns VS
+     JOIN Consultations C ON VS.consultation_id = C.id
+     WHERE C.patient_id = ?
+     ORDER BY C.date DESC
+     `, [patientId]
+    );
+
+
+
+    //  Antecedentes familiares
+    const [familyHistory] = await query('SELECT * FROM FamilyHistory WHERE patient_id = ?', [patientId]);
+
+    res.json({
+      success: true,
+      patient,
+      allergy_list: allergyList,
+      extra_data: extraData,
+      vaccines,
+      vital_signs: vitalSigns,
+      family_history: familyHistory
+    });
+
   } catch (error) {
     console.error('Error al obtener paciente:', error);
     res.status(500).json({ error: 'Error al obtener el paciente' });
   }
 };
 
-// Actualizar información del paciente
-exports.updatePatient = async (req, res) => {
+exports.updatePatientByRegistrationNumber = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { registration_number } = req.params;
     const fields = req.body;
     const modifierId = req.user.userId;
 
-    // Validar tipo de sangre si se actualiza
     if (fields.blood_type && !validBloodTypes.includes(fields.blood_type)) {
       return res.status(400).json({ error: 'Tipo de sangre no válido' });
     }
 
-    // Obtener datos originales del paciente
-    const [original] = await query('SELECT * FROM Patients WHERE id = ?', [id]);
+    const [original] = await query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
     if (original.length === 0) {
       return res.status(404).json({ error: 'Paciente no encontrado' });
     }
 
-    // Detectar cambios en los datos
-    const changes = detectPatientChanges(original[0], fields);
+    const patientId = original[0].id;
 
+    const changes = detectPatientChanges(original[0], fields);
     if (changes.length === 0) {
-      return res.json({ 
-        success: true, 
-        message: 'No hay cambios en los datos del paciente' 
+      return res.json({
+        success: true,
+        message: 'No hay cambios en los datos del paciente'
       });
     }
 
-    // Construir consulta de actualización
     const fieldsSet = Object.keys(fields).map(key => `${key} = ?`).join(', ');
     const values = Object.values(fields);
 
-    // Actualizar paciente
-    await query(`UPDATE Patients SET ${fieldsSet} WHERE id = ?`, [...values, id]);
+    await query(
+      `UPDATE Patients SET ${fieldsSet} WHERE registration_number = ?`,
+      [...values, registration_number]
+    );
 
-    // Registrar cambios en el historial
     for (const change of changes) {
       await query(
-        `INSERT INTO PatientChangeHistory
-         (patient_id, modified_field, old_value, new_value, modified_by)
+        `INSERT INTO PatientChangeHistory 
+         (patient_id, modified_field, old_value, new_value, modified_by) 
          VALUES (?, ?, ?, ?, ?)`,
         [
-          id,
+          patientId,
           change.field,
           String(change.old ?? ''),
           String(change.new),
@@ -254,21 +337,5 @@ exports.updatePatient = async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar paciente:', error);
     res.status(500).json({ error: 'Error al actualizar el paciente' });
-  }
-};
-
-// Eliminar paciente
-exports.deletePatient = async (req, res) => {
-  try {
-    const { id } = req.params;
-    await query('DELETE FROM Patients WHERE id = ?', [id]);
-
-    res.json({ 
-      success: true, 
-      message: 'Paciente eliminado exitosamente' 
-    });
-  } catch (error) {
-    console.error('Error al eliminar paciente:', error);
-    res.status(500).json({ error: 'Error al eliminar el paciente' });
   }
 };

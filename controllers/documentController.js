@@ -1,6 +1,5 @@
 const { query } = require('../config/db.sql');
 
-
 // Subir un nuevo documento
 exports.uploadDocument = async (req, res) => {
   try {
@@ -164,24 +163,6 @@ exports.getAllReadDocuments = async (req, res) => {
     });
   }
 };
-exports.getAllPendingDocuments = async (req, res) => {
-  try {
-    const [docs] = await query(`
-      SELECT D.*, Pa.first_name, Pa.last_name 
-      FROM Documents D
-      JOIN Patients Pa ON D.patient_id = Pa.id
-      WHERE D.status = 'pendiente'
-      ORDER BY D.date DESC
-    `);
+//exports.getAllPendingDocuments = async (req, res) => {
+  
 
-    res.json({ 
-      success: true, 
-      documents: docs 
-    });
-  } catch (error) {
-    console.error('Error al obtener documentos pendientes (global):', error);
-    res.status(500).json({ 
-      error: 'Error al obtener los documentos pendientes' 
-    });
-  }
-};

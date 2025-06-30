@@ -12,7 +12,8 @@ router.get('/:id/view', controller.viewAndMarkAsRead);
 router.get('/:id/read', controller.getReadDocuments); 
 router.get('/:id/pending', controller.getPendingDocuments); 
 router.get('/all/read', controller.getAllReadDocuments);
-router.get('/all/pending', controller.getAllPendingDocuments); 
+//router.get('/all/pending', controller.getAllPendingDocuments); 
+
 
 
 
