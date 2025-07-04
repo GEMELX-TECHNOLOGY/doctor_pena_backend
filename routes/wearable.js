@@ -1,53 +1,56 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { admin, db } = require('../config/firebase');
-const mysql = require('../config/db.sql');
-const { queryHuggingFace } = require('../utils/huggingfaceClient');
-const jwt = require('jsonwebtoken'); 
-
+const { admin, db } = require("../config/firebase");
+const mysql = require("../config/db.sql");
+const { queryHuggingFace } = require("../utils/huggingfaceClient");
+const jwt = require("jsonwebtoken");
 
 const authenticateWearable = async (req, res, next) => {
-    try {
-        const token = req.headers.authorization?.split(' ')[1];
-        
-        if (!token) {
-            return res.status(401).json({ error: 'Acceso no autorizado' });
-        }
+	try {
+		const token = req.headers.authorization?.split(" ")[1];
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        if (decoded.role !== 'paciente') {
-            return res.status(403).json({ error: 'Solo pacientes pueden subir datos de sensores' });
-        }
+		if (!token) {
+			return res.status(401).json({ error: "Acceso no autorizado" });
+		}
 
-        if (!decoded.registration_number) {
-            return res.status(400).json({ error: 'Token inválido: falta registration_number' });
-        }
+		const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        req.user = {
-            userId: decoded.userId,
-            role: decoded.role,
-            registration_number: decoded.registration_number
-        };
+		if (decoded.role !== "paciente") {
+			return res
+				.status(403)
+				.json({ error: "Solo pacientes pueden subir datos de sensores" });
+		}
 
-        next();
-    } catch (error) {
-        console.error(' Error de autenticación:', error.message);
-        
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({ error: 'Token expirado' });
-        }
-        
-        if (error.name === 'JsonWebTokenError') {
-            return res.status(401).json({ error: 'Token inválido' });
-        }
-        
-        res.status(500).json({ error: 'Error interno de autenticación' });
-    }
+		if (!decoded.registration_number) {
+			return res
+				.status(400)
+				.json({ error: "Token inválido: falta registration_number" });
+		}
+
+		req.user = {
+			userId: decoded.userId,
+			role: decoded.role,
+			registration_number: decoded.registration_number,
+		};
+
+		next();
+	} catch (error) {
+		console.error(" Error de autenticación:", error.message);
+
+		if (error.name === "TokenExpiredError") {
+			return res.status(401).json({ error: "Token expirado" });
+		}
+
+		if (error.name === "JsonWebTokenError") {
+			return res.status(401).json({ error: "Token inválido" });
+		}
+
+		res.status(500).json({ error: "Error interno de autenticación" });
+	}
 };
 
 async function generarMensajePersonalizado(historial, signosVitales) {
-  const prompt = `
+	const prompt = `
   Eres un asistente médico. Tu única función es analizar signos vitales de pacientes y brindar orientación de salud personalizada. 
    Nunca respondas con código de programación, matemáticas ni otro tema ajeno a la medicina.
 
@@ -69,182 +72,212 @@ async function generarMensajePersonalizado(historial, signosVitales) {
   Escribe un mensaje directamente al paciente (sin temas técnicos ni código):
  `;
 
-  
-
-  try {
-    const mensaje = await queryHuggingFace(prompt);
-    return mensaje;
-  } catch (error) {
-    console.error(' Error generando texto con Hugging Face:', error);
-    return null;
-  }
+	try {
+		const mensaje = await queryHuggingFace(prompt);
+		return mensaje;
+	} catch (error) {
+		console.error(" Error generando texto con Hugging Face:", error);
+		return null;
+	}
 }
 
 const analizarSignosVitales = ({ heart_rate, oxygenation, temperature }) => {
-  if (heart_rate > 120 || oxygenation < 90 || temperature > 38.5 || temperature < 35) {
-    return 'alto riesgo';
-  }
-  return 'normal';
+	if (
+		heart_rate > 120 ||
+		oxygenation < 90 ||
+		temperature > 38.5 ||
+		temperature < 35
+	) {
+		return "alto riesgo";
+	}
+	return "normal";
 };
 // Ruta POST para pulcera
-router.post('/upload', authenticateWearable, async (req, res) => {
-    const registration_number = req.user.registration_number;
-    const { heart_rate, oxygenation, temperature } = req.body;
+router.post("/upload", authenticateWearable, async (req, res) => {
+	const registration_number = req.user.registration_number;
+	const { heart_rate, oxygenation, temperature } = req.body;
 
-    console.log(' Datos recibidos:', { 
-        registration_number, 
-        heart_rate, 
-        oxygenation, 
-        temperature 
-    });
+	console.log(" Datos recibidos:", {
+		registration_number,
+		heart_rate,
+		oxygenation,
+		temperature,
+	});
 
-    try {
-        const [rows] = await mysql.query('SELECT * FROM Patients WHERE registration_number = ?', [registration_number]);
-        if (rows.length === 0) {
-            return res.status(404).json({ error: 'Paciente no encontrado en la base de datos MySQL' });
-        }
+	try {
+		const [rows] = await mysql.query(
+			"SELECT * FROM Patients WHERE registration_number = ?",
+			[registration_number],
+		);
+		if (rows.length === 0) {
+			return res
+				.status(404)
+				.json({ error: "Paciente no encontrado en la base de datos MySQL" });
+		}
 
-        const paciente = rows[0];
-        const riesgo = analizarSignosVitales({ heart_rate, oxygenation, temperature });
+		const paciente = rows[0];
+		const riesgo = analizarSignosVitales({
+			heart_rate,
+			oxygenation,
+			temperature,
+		});
 
-        let mensajeIA = null;
-        if (riesgo !== 'normal') {
-            const [alertasPrevias] = await mysql.query(
-                'SELECT message FROM Alerts WHERE recipient_id = ? ORDER BY date DESC LIMIT 5',
-                [paciente.user_id]
-            );
+		let mensajeIA = null;
+		if (riesgo !== "normal") {
+			const [alertasPrevias] = await mysql.query(
+				"SELECT message FROM Alerts WHERE recipient_id = ? ORDER BY date DESC LIMIT 5",
+				[paciente.user_id],
+			);
 
-            const historial = alertasPrevias.map(a => a.message).join('\n') || "Sin historial previo.";
-            mensajeIA = await generarMensajePersonalizado(historial, { heart_rate, oxygenation, temperature });
+			const historial =
+				alertasPrevias.map((a) => a.message).join("\n") ||
+				"Sin historial previo.";
+			mensajeIA = await generarMensajePersonalizado(historial, {
+				heart_rate,
+				oxygenation,
+				temperature,
+			});
 
-            await mysql.query(
-                'INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)',
-                ['ia', paciente.user_id, mensajeIA || `Riesgo detectado: ${riesgo}`]
-            );
-        }
+			await mysql.query(
+				"INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)",
+				["ia", paciente.user_id, mensajeIA || `Riesgo detectado: ${riesgo}`],
+			);
+		}
 
-        let isEmergency = false;
-        if (
-            temperature < 35 || temperature > 38.5 ||
-            heart_rate < 50 || heart_rate > 120 ||
-            oxygenation < 90
-        ) {
-            isEmergency = true;
-            await mysql.query(
-                'INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)',
-                ['emergencia', paciente.user_id, `Emergencia detectada para el paciente ${paciente.first_name} ${paciente.last_name}`]
-            );
-        }
+		let isEmergency = false;
+		if (
+			temperature < 35 ||
+			temperature > 38.5 ||
+			heart_rate < 50 ||
+			heart_rate > 120 ||
+			oxygenation < 90
+		) {
+			isEmergency = true;
+			await mysql.query(
+				"INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)",
+				[
+					"emergencia",
+					paciente.user_id,
+					`Emergencia detectada para el paciente ${paciente.first_name} ${paciente.last_name}`,
+				],
+			);
+		}
 
-        const newData = {
-            patient_id: registration_number,
-            heart_rate,
-            oxygenation,
-            temperature,
-            isEmergency,
-            timestamp: admin.firestore.FieldValue.serverTimestamp()
-        };
+		const newData = {
+			patient_id: registration_number,
+			heart_rate,
+			oxygenation,
+			temperature,
+			isEmergency,
+			timestamp: admin.firestore.FieldValue.serverTimestamp(),
+		};
 
-        console.log(" Guardando en Firebase:", newData);
+		console.log(" Guardando en Firebase:", newData);
 
-        // Guardar en colección WearableData
-        await db.collection('WearableData').add(newData)
-            .then(async (ref) => {
-                console.log(" Documento agregado con ID:", ref.id);
+		// Guardar en colección WearableData
+		await db
+			.collection("WearableData")
+			.add(newData)
+			.then(async (ref) => {
+				console.log(" Documento agregado con ID:", ref.id);
 
-                // Guardar  en la colección Historial
-                await db.collection('Historial').add({
-                    ...newData,
-                    wearableDataRef: ref.id
-                });
+				// Guardar  en la colección Historial
+				await db.collection("Historial").add({
+					...newData,
+					wearableDataRef: ref.id,
+				});
 
-                res.json({
-                    message: 'Datos guardados correctamente en Firestore',
-                    data: newData,
-                    patient: {
-                        id: paciente.id,
-                        name: `${paciente.first_name} ${paciente.last_name}`
-                    },
-                    iaMessage: mensajeIA || 'Sin riesgos detectados'
-                });
-            })
-            .catch(err => {
-                console.error(" Error al guardar en Firestore:", err);
-                res.status(500).json({ error: 'Error al guardar en Firebase' });
-            });
-
-    } catch (error) {
-        console.error('Error general al procesar:', error);
-        res.status(500).json({ error: 'Error interno del servidor' });
-    }
+				res.json({
+					message: "Datos guardados correctamente en Firestore",
+					data: newData,
+					patient: {
+						id: paciente.id,
+						name: `${paciente.first_name} ${paciente.last_name}`,
+					},
+					iaMessage: mensajeIA || "Sin riesgos detectados",
+				});
+			})
+			.catch((err) => {
+				console.error(" Error al guardar en Firestore:", err);
+				res.status(500).json({ error: "Error al guardar en Firebase" });
+			});
+	} catch (error) {
+		console.error("Error general al procesar:", error);
+		res.status(500).json({ error: "Error interno del servidor" });
+	}
 });
 //ruta GET En tiempo real
-router.get('/latest/:registration_number', async (req, res) => {
-    const { registration_number } = req.params;
+router.get("/latest/:registration_number", async (req, res) => {
+	const { registration_number } = req.params;
 
-    try {
-        // Consulta los últimos datos del paciente en Firestore
-        const snapshot = await db.collection('WearableData')
-            .where('patient_id', '==', registration_number)
-            .orderBy('timestamp', 'desc')
-            .limit(1)
-            .get();
+	try {
+		// Consulta los últimos datos del paciente en Firestore
+		const snapshot = await db
+			.collection("WearableData")
+			.where("patient_id", "==", registration_number)
+			.orderBy("timestamp", "desc")
+			.limit(1)
+			.get();
 
-        if (snapshot.empty) {
-            return res.status(404).json({ error: 'No se encontraron datos del paciente' });
-        }
+		if (snapshot.empty) {
+			return res
+				.status(404)
+				.json({ error: "No se encontraron datos del paciente" });
+		}
 
-        const doc = snapshot.docs[0];
-        const data = doc.data();
+		const doc = snapshot.docs[0];
+		const data = doc.data();
 
-        res.json({
-            success: true,
-            data: {
-                heart_rate: data.heart_rate,
-                oxygenation: data.oxygenation,
-                temperature: data.temperature,
-                timestamp: data.timestamp,
-                isEmergency: data.isEmergency
-            }
-        });
-    } catch (error) {
-        console.error('Error al obtener datos recientes:', error);
-        res.status(500).json({ error: 'Error al obtener datos del paciente' });
-    }
+		res.json({
+			success: true,
+			data: {
+				heart_rate: data.heart_rate,
+				oxygenation: data.oxygenation,
+				temperature: data.temperature,
+				timestamp: data.timestamp,
+				isEmergency: data.isEmergency,
+			},
+		});
+	} catch (error) {
+		console.error("Error al obtener datos recientes:", error);
+		res.status(500).json({ error: "Error al obtener datos del paciente" });
+	}
 });
 //RUta GET historial
-router.get('/historial/:registration_number', async (req, res) => {
-    const { registration_number } = req.params;
+router.get("/historial/:registration_number", async (req, res) => {
+	const { registration_number } = req.params;
 
-    try {
-        const snapshot = await db.collection('Historial')
-            .where('patient_id', '==', registration_number)
-            .orderBy('timestamp', 'desc')
-            .limit(50) // puedes ajustar este número
-            .get();
+	try {
+		const snapshot = await db
+			.collection("Historial")
+			.where("patient_id", "==", registration_number)
+			.orderBy("timestamp", "desc")
+			.limit(50) // puedes ajustar este número
+			.get();
 
-        if (snapshot.empty) {
-            return res.status(404).json({ error: 'No hay historial para este paciente' });
-        }
+		if (snapshot.empty) {
+			return res
+				.status(404)
+				.json({ error: "No hay historial para este paciente" });
+		}
 
-        const historial = snapshot.docs.map(doc => ({
-            id: doc.id,
-            heart_rate: doc.data().heart_rate,
-            oxygenation: doc.data().oxygenation,
-            temperature: doc.data().temperature,
-            isEmergency: doc.data().isEmergency,
-            timestamp: doc.data().timestamp?.toDate() || null
-        }));
+		const historial = snapshot.docs.map((doc) => ({
+			id: doc.id,
+			heart_rate: doc.data().heart_rate,
+			oxygenation: doc.data().oxygenation,
+			temperature: doc.data().temperature,
+			isEmergency: doc.data().isEmergency,
+			timestamp: doc.data().timestamp?.toDate() || null,
+		}));
 
-        res.json({
-            success: true,
-            historial
-        });
-    } catch (error) {
-        console.error('Error al obtener historial:', error);
-        res.status(500).json({ error: 'Error al consultar el historial' });
-    }
+		res.json({
+			success: true,
+			historial,
+		});
+	} catch (error) {
+		console.error("Error al obtener historial:", error);
+		res.status(500).json({ error: "Error al consultar el historial" });
+	}
 });
-
 
 module.exports = router;
