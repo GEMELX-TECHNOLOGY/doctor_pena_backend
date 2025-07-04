@@ -86,7 +86,7 @@ const analizarSignosVitales = ({ heart_rate, oxygenation, temperature }) => {
   }
   return 'normal';
 };
-
+// Ruta POST para pulcera
 router.post('/upload', authenticateWearable, async (req, res) => {
     const registration_number = req.user.registration_number;
     const { heart_rate, oxygenation, temperature } = req.body;
@@ -178,5 +178,73 @@ router.post('/upload', authenticateWearable, async (req, res) => {
         res.status(500).json({ error: 'Error interno del servidor' });
     }
 });
+//ruta GET En tiempo real
+router.get('/latest/:registration_number', async (req, res) => {
+    const { registration_number } = req.params;
+
+    try {
+        // Consulta los últimos datos del paciente en Firestore
+        const snapshot = await db.collection('WearableData')
+            .where('patient_id', '==', registration_number)
+            .orderBy('timestamp', 'desc')
+            .limit(1)
+            .get();
+
+        if (snapshot.empty) {
+            return res.status(404).json({ error: 'No se encontraron datos del paciente' });
+        }
+
+        const doc = snapshot.docs[0];
+        const data = doc.data();
+
+        res.json({
+            success: true,
+            data: {
+                heart_rate: data.heart_rate,
+                oxygenation: data.oxygenation,
+                temperature: data.temperature,
+                timestamp: data.timestamp,
+                isEmergency: data.isEmergency
+            }
+        });
+    } catch (error) {
+        console.error('Error al obtener datos recientes:', error);
+        res.status(500).json({ error: 'Error al obtener datos del paciente' });
+    }
+});
+//RUta GET historial
+router.get('/historial/:registration_number', async (req, res) => {
+    const { registration_number } = req.params;
+
+    try {
+        const snapshot = await db.collection('Historial')
+            .where('patient_id', '==', registration_number)
+            .orderBy('timestamp', 'desc')
+            .limit(50) // puedes ajustar este número
+            .get();
+
+        if (snapshot.empty) {
+            return res.status(404).json({ error: 'No hay historial para este paciente' });
+        }
+
+        const historial = snapshot.docs.map(doc => ({
+            id: doc.id,
+            heart_rate: doc.data().heart_rate,
+            oxygenation: doc.data().oxygenation,
+            temperature: doc.data().temperature,
+            isEmergency: doc.data().isEmergency,
+            timestamp: doc.data().timestamp?.toDate() || null
+        }));
+
+        res.json({
+            success: true,
+            historial
+        });
+    } catch (error) {
+        console.error('Error al obtener historial:', error);
+        res.status(500).json({ error: 'Error al consultar el historial' });
+    }
+});
+
 
 module.exports = router;

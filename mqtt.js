@@ -2,7 +2,7 @@ const mqtt = require('mqtt');
 const axios = require('axios');
 
 // Configuración
-const MQTT_BROKER_URL = 'mqtt://broker.hivemq.com';
+const MQTT_BROKER_URL = 'mqtt://broker.emqx.io';
 const MQTT_TOPIC = 'salud/sensores';
 const BACKEND_URL = 'http://localhost:3000/api/wearable/upload';
 

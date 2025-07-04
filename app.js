@@ -57,7 +57,7 @@ app.use('/api/alerts', alertRoutes);
 app.use('/api/sales', saleRoutes);
 app.use('/api/wearable', wearableRoutes);
 
-app.use((err, req, res, _next) => {
+app.use((err, req, res, ) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Internal server error', message: err.message });
 });
