@@ -227,17 +227,28 @@ exports.markAsCompleted = async (req, res) => {
 
 // Obtener citas por paciente
 exports.getAppointmentsByPatient = async (req, res) => {
-	try {
-		const [rows] = await query(
-			`SELECT * FROM Appointments WHERE patient_id = ? ORDER BY date_time ASC`,
-			[req.params.id],
-		);
-		res.json({ success: true, appointments: rows });
-	} catch (err) {
-		console.error(err);
-		res.status(500).json({ error: "Error obteniendo citas de paciente" });
-	}
+  try {
+    const [patientRow] = await query(
+      `SELECT id FROM Patients WHERE registration_number = ?`,
+      [req.params.id]
+    );
+
+    if (!patientRow.length) {
+      return res.status(404).json({ error: "Paciente no encontrado" });
+    }
+
+    const patientId = patientRow[0].id;
+    const [rows] = await query(
+      `SELECT * FROM Appointments WHERE patient_id = ? ORDER BY date_time ASC`,
+      [patientId]
+    );
+    res.json({ success: true, appointments: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error obteniendo citas de paciente" });
+  }
 };
+
 
 // Obtener todas las citas
 exports.getAllAppointments = async (_req, res) => {
