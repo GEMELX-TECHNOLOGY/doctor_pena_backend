@@ -32,9 +32,10 @@ client.on("message", async (_topic, message) => {
 		console.log("Datos recibidos:", data);
 
 		// Verificar estructura mínima
-		if (!data.token || typeof data.sensors !== "object") {
-			return console.warn("Falta token o datos de sensores");
-		}
+     if (!data.token || data.bpm === undefined || data.spo2 === undefined || data.temp === undefined) {
+  		return console.warn("Falta token o datos de sensores");
+	}
+
 
 		// Función para limpiar valores
 		const cleanValue = (val) => {
@@ -42,9 +43,10 @@ client.on("message", async (_topic, message) => {
 			return parseFloat(val);
 		};
 
-		const bpm = cleanValue(data.sensors.bpm);
-		const spo2 = cleanValue(data.sensors.spo2);
-		const temp = cleanValue(data.sensors.temp);
+		const bpm = cleanValue(data.bpm);
+		const spo2 = cleanValue(data.spo2);
+		const temp = cleanValue(data.temp);
+
 
 		// Validar datos
 		if ([bpm, spo2, temp].some((val) => val === null)) {
