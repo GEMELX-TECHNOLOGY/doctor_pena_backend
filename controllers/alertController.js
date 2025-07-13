@@ -6,9 +6,9 @@ exports.createAlert = async (req, res) => {
 		const { type, recipient_id, message } = req.body;
 
 		await query(
-			`INSERT INTO Alerts (type, recipient_id, message) 
-       VALUES (?, ?, ?)`,
-			[type, recipient_id, message],
+			`INSERT INTO Alerts (type, recipient_id, message, date, is_read) 
+       VALUES (?, ?, ?, NOW(), 0)`,
+			[type, recipient_id, message]
 		);
 
 		res
@@ -19,6 +19,7 @@ exports.createAlert = async (req, res) => {
 		res.status(500).json({ error: "Error al crear alerta" });
 	}
 };
+
 // Obtener alertas por destinatario
 exports.getByRecipient = async (req, res) => {
 	try {
@@ -27,7 +28,7 @@ exports.getByRecipient = async (req, res) => {
 			`SELECT * FROM Alerts 
        WHERE recipient_id = ?
        ORDER BY date DESC`,
-			[recipient_id],
+			[recipient_id]
 		);
 		res.json({ success: true, alerts });
 	} catch (error) {
@@ -40,7 +41,7 @@ exports.getByRecipient = async (req, res) => {
 exports.markAsRead = async (req, res) => {
 	try {
 		const { id } = req.params;
-		await query(`UPDATE Alerts SET read = 1 WHERE id = ?`, [id]);
+		await query(`UPDATE Alerts SET is_read = 1 WHERE id = ?`, [id]);
 		res.json({ success: true, message: "Alerta marcada como leída" });
 	} catch (error) {
 		console.error("Error al marcar alerta como leída", error);

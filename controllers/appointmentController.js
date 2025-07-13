@@ -36,6 +36,7 @@ exports.createAppointment = async (req, res) => {
 			reason,
 			status = "pendiente",
 			notes,
+			final_status = "pendiente",
 		} = req.body;
 
 		if (!(await patientExists(patient_id))) {
@@ -49,9 +50,9 @@ exports.createAppointment = async (req, res) => {
 		}
 
 		await query(
-			`INSERT INTO Appointments (patient_id, date_time, reason, status, notes)
-       VALUES (?, ?, ?, ?, ?)`,
-			[patient_id, date_time, reason, status, notes],
+			`INSERT INTO Appointments (patient_id, date_time, reason, status, notes, final_status)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+			[patient_id, date_time, reason, status, notes, final_status],
 		);
 
 		const [patientData] = await query(
@@ -66,12 +67,12 @@ exports.createAppointment = async (req, res) => {
 		const alertDate = getCurrentDateTime();
 
 		await query(
-			`INSERT INTO Alerts (type, recipient_id, message, date, read) VALUES ('cita', ?, ?, ?, 0)`,
+			`INSERT INTO Alerts (type, recipient_id, message, date, is_read) VALUES ('cita', ?, ?, ?, 0)`,
 			[patient_id, `You have an appointment on ${date_time}`, alertDate],
 		);
 
 		await query(
-			`INSERT INTO Alerts (type, recipient_id, message, date, read) VALUES ('cita', ?, ?, ?, 0)`,
+			`INSERT INTO Alerts (type, recipient_id, message, date, is_read) VALUES ('cita', ?, ?, ?, 0)`,
 			[
 				DEFAULT_DOCTOR_ID,
 				`You have an appointment with patient ${patientName} on ${date_time}`,
@@ -140,7 +141,7 @@ exports.updateAppointment = async (req, res) => {
 
 		if (patientUserId) {
 			await query(
-				`INSERT INTO Alerts (type, recipient_id, message, date, read) VALUES ('cita', ?, ?, ?, 0)`,
+				`INSERT INTO Alerts (type, recipient_id, message, date, is_read) VALUES ('cita', ?, ?, ?, 0)`,
 				[
 					patientUserId,
 					`Your appointment has been ${newStatus === "reprogramada" ? "rescheduled" : "updated"}: ${newDate}`,
@@ -150,7 +151,7 @@ exports.updateAppointment = async (req, res) => {
 		}
 
 		await query(
-			`INSERT INTO Alerts (type, recipient_id, message, date, read) VALUES ('cita', ?, ?, ?, 0)`,
+			`INSERT INTO Alerts (type, recipient_id, message, date, is_read) VALUES ('cita', ?, ?, ?, 0)`,
 			[
 				DEFAULT_DOCTOR_ID,
 				`Appointment ${newStatus === "reprogramada" ? "rescheduled" : "updated"} with ${patientName} for ${newDate}`,
@@ -167,6 +168,7 @@ exports.updateAppointment = async (req, res) => {
 		res.status(500).json({ error: "Error actualizando cita" });
 	}
 };
+	
 
 // Cancelar cita
 exports.cancelAppointment = async (req, res) => {

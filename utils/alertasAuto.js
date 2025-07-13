@@ -9,11 +9,11 @@ exports.generateAutomaticAlerts = async () => {
 		);
 		for (const prod of productosBajos) {
 			await query(
-				`INSERT INTO Alerts (type, recipient_id, message, date, \`read\`)
+				`INSERT INTO Alerts (type, recipient_id, message, date, is_read)
          SELECT 'stock', ?, ?, NOW(), 0 FROM DUAL
          WHERE NOT EXISTS (
            SELECT 1 FROM Alerts 
-           WHERE type = 'stock' AND message LIKE ? AND \`read\` = 0
+           WHERE type = 'stock' AND message LIKE ? AND is_read = 0
          )`,
 				[
 					doctorId,
@@ -29,11 +29,11 @@ exports.generateAutomaticAlerts = async () => {
 		);
 		for (const prod of productosCaducos) {
 			await query(
-				`INSERT INTO Alerts (type, recipient_id, message, date, \`read\`)
+				`INSERT INTO Alerts (type, recipient_id, message, date, is_read)
          SELECT 'caducidad', ?, ?, NOW(), 0 FROM DUAL
          WHERE NOT EXISTS (
            SELECT 1 FROM Alerts 
-           WHERE type = 'caducidad' AND message LIKE ? AND \`read\` = 0
+           WHERE type = 'caducidad' AND message LIKE ? AND is_read = 0
          )`,
 				[
 					doctorId,
