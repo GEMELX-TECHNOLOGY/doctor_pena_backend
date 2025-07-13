@@ -16,10 +16,14 @@ async function hasAppointmentConflict(date_time, excludeId = null) {
 	return rows.length > 0;
 }
 
-// Verifica si el paciente existe
-async function patientExists(id) {
-	const [rows] = await query("SELECT id FROM Patients WHERE id = ?", [id]);
-	return rows.length > 0;
+// Verifica si el paciente existe y devuelve su id real
+async function getPatientIdByRegistrationNumber(registration_number) {
+	const [rows] = await query(
+		"SELECT id FROM Patients WHERE registration_number = ?",
+		[registration_number]
+	);
+	if (rows.length === 0) return null;
+	return rows[0].id;
 }
 
 // Función auxiliar para obtener fecha actual formateada para SQL (yyyy-MM-dd HH:mm:ss)
@@ -27,11 +31,11 @@ function getCurrentDateTime() {
 	return new Date().toISOString().slice(0, 19).replace("T", " ");
 }
 
-// Crear Cita
+// Crear Cita, ahora recibe registration_number en el body en lugar de patient_id
 exports.createAppointment = async (req, res) => {
 	try {
 		const {
-			patient_id,
+			registration_number,
 			date_time,
 			reason,
 			status = "pendiente",
@@ -39,7 +43,8 @@ exports.createAppointment = async (req, res) => {
 			final_status = "pendiente",
 		} = req.body;
 
-		if (!(await patientExists(patient_id))) {
+		const patient_id = await getPatientIdByRegistrationNumber(registration_number);
+		if (!patient_id) {
 			return res.status(400).json({ error: "Paciente no encontrado" });
 		}
 
@@ -89,7 +94,7 @@ exports.createAppointment = async (req, res) => {
 	}
 };
 
-// Actualizar Cita
+// Actualizar Cita (por id de cita, no cambia)
 exports.updateAppointment = async (req, res) => {
 	try {
 		const { date_time, reason, status, notes } = req.body;
@@ -168,7 +173,6 @@ exports.updateAppointment = async (req, res) => {
 		res.status(500).json({ error: "Error actualizando cita" });
 	}
 };
-	
 
 // Cancelar cita
 exports.cancelAppointment = async (req, res) => {
@@ -227,36 +231,32 @@ exports.markAsCompleted = async (req, res) => {
 	}
 };
 
-// Obtener citas por paciente
+// Obtener citas por paciente 
 exports.getAppointmentsByPatient = async (req, res) => {
-  try {
-    const [patientRow] = await query(
-      `SELECT id FROM Patients WHERE registration_number = ?`,
-      [req.params.id]
-    );
+	try {
+		const registrationNumber = req.params.registration_number;
 
-    if (!patientRow.length) {
-      return res.status(404).json({ error: "Paciente no encontrado" });
-    }
+		const patient_id = await getPatientIdByRegistrationNumber(registrationNumber);
+		if (!patient_id) {
+			return res.status(404).json({ error: "Paciente no encontrado" });
+		}
 
-    const patientId = patientRow[0].id;
-    const [rows] = await query(
-      `SELECT * FROM Appointments WHERE patient_id = ? ORDER BY date_time ASC`,
-      [patientId]
-    );
-    res.json({ success: true, appointments: rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error obteniendo citas de paciente" });
-  }
+		const [rows] = await query(
+			`SELECT * FROM Appointments WHERE patient_id = ? ORDER BY date_time ASC`,
+			[patient_id]
+		);
+		res.json({ success: true, appointments: rows });
+	} catch (err) {
+		console.error(err);
+		res.status(500).json({ error: "Error obteniendo citas de paciente" });
+	}
 };
-
 
 // Obtener todas las citas
 exports.getAllAppointments = async (_req, res) => {
 	try {
 		const [appointments] = await query(
-			`SELECT * FROM Appointments ORDER BY date_time ASC`,
+			`SELECT * FROM Appointments ORDER BY date_time ASC`
 		);
 
 		const appointmentsWithPatient = await Promise.all(
@@ -264,7 +264,7 @@ exports.getAllAppointments = async (_req, res) => {
 				const [patientData] = await query(
 					`SELECT registration_number, first_name, last_name, birth_date 
            FROM Patients WHERE id = ?`,
-					[appointment.patient_id],
+					[appointment.patient_id]
 				);
 
 				let patient = null;
@@ -280,7 +280,7 @@ exports.getAllAppointments = async (_req, res) => {
 
 				const formattedDate = format(
 					new Date(appointment.date_time),
-					"dd-MM-yyyy - hh:mm a",
+					"dd-MM-yyyy - hh:mm a"
 				);
 
 				return {
@@ -296,7 +296,7 @@ exports.getAllAppointments = async (_req, res) => {
 						: {}),
 					patient,
 				};
-			}),
+			})
 		);
 
 		res.json({ success: true, appointments: appointmentsWithPatient });
@@ -323,7 +323,7 @@ exports.updateAppointmentStatus = async (req, res) => {
 
 		const [result] = await query(
 			`UPDATE Appointments SET status = ? WHERE id = ?`,
-			[status, req.params.id],
+			[status, req.params.id]
 		);
 
 		if (result.affectedRows === 0) {
@@ -336,15 +336,23 @@ exports.updateAppointmentStatus = async (req, res) => {
 		res.status(500).json({ error: "Error actualizando status" });
 	}
 };
-// Obtener la proxima cita del pacientee
+
+// Obtener la próxima cita del paciente 
 exports.getNextAppointmentByPatient = async (req, res) => {
 	try {
+		const registrationNumber = req.params.registration_number;
+
+		const patient_id = await getPatientIdByRegistrationNumber(registrationNumber);
+		if (!patient_id) {
+			return res.status(404).json({ error: "Paciente no encontrado" });
+		}
+
 		const [rows] = await query(
 			`SELECT * FROM Appointments 
        WHERE patient_id = ? AND status IN ('pendiente', 'confirmada', 'reprogramada') AND date_time > NOW()
        ORDER BY date_time ASC 
        LIMIT 1`,
-			[req.params.id],
+			[patient_id]
 		);
 
 		if (rows.length === 0) {
@@ -354,12 +362,11 @@ exports.getNextAppointmentByPatient = async (req, res) => {
 		res.json({ success: true, appointment: rows[0] });
 	} catch (err) {
 		console.error("Error al obtener próxima cita del paciente:", err);
-		res
-			.status(500)
-			.json({ error: "Error al obtener próxima cita del paciente" });
+		res.status(500).json({ error: "Error al obtener próxima cita del paciente" });
 	}
 };
-//obtener proxima cita del doctor
+
+// Obtener la próxima cita del doctor
 exports.getNextAppointmentByDoctor = async (_req, res) => {
 	try {
 		const [rows] = await query(
@@ -368,7 +375,7 @@ exports.getNextAppointmentByDoctor = async (_req, res) => {
        JOIN Patients P ON A.patient_id = P.id
        WHERE A.status IN ('pendiente', 'confirmada', 'reprogramada') AND A.date_time > NOW()
        ORDER BY A.date_time ASC 
-       LIMIT 1`,
+       LIMIT 1`
 		);
 
 		if (rows.length === 0) {
