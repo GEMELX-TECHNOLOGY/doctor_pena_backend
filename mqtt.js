@@ -13,7 +13,7 @@ client.on("connect", () => {
 	client.subscribe(MQTT_TOPIC, (err) => {
 		err
 			? console.error("Error al suscribirse:", err.message)
-			: console.log(` Suscrito a topic: ${MQTT_TOPIC}`);
+			: console.log(`Suscrito a topic: ${MQTT_TOPIC}`);
 	});
 });
 
@@ -32,11 +32,14 @@ client.on("message", async (_topic, message) => {
 		console.log("Datos recibidos:", data);
 
 		// Verificar estructura mínima
-     	if (!data.registration_number || data.bpm === undefined || data.spo2 === undefined || data.temp === undefined) {
-  			return console.warn("Falta registration_number o datos de sensores");
+		if (
+			!data.registration_number ||
+			data.bpm === undefined ||
+			data.spo2 === undefined ||
+			data.temp === undefined
+		) {
+			return console.warn("Falta registration_number o datos de sensores");
 		}
-
-
 
 		// Función para limpiar valores
 		const cleanValue = (val) => {
@@ -48,32 +51,29 @@ client.on("message", async (_topic, message) => {
 		const spo2 = cleanValue(data.spo2);
 		const temp = cleanValue(data.temp);
 
-
 		// Validar datos
 		if ([bpm, spo2, temp].some((val) => val === null)) {
 			return console.warn("Datos incompletos o inválidos");
 		}
 
-		// Payload
+		// Payload a enviar al backend
 		const payload = {
- 		 registration_number: data.registration_number,
-		  heart_rate: cleanValue(data.bpm),
-		  oxygenation: cleanValue(data.spo2),
-		  temperature: cleanValue(data.temp),
+			registration_number: data.registration_number,
+			heart_rate: bpm,
+			oxygenation: spo2,
+			temperature: temp,
 		};
-
 
 		console.log("Enviando al backend:", payload);
 
 		const response = await axios.post(BACKEND_URL, payload);
-		
 
 		console.log("Respuesta del backend:", response.data.message || "OK");
 	} catch (error) {
-		console.error(" Error procesando mensaje:", error.message);
+		console.error("Error procesando mensaje:", error.message);
 
 		if (error.response) {
-			console.error(" Detalles del error:", error.response.data);
+			console.error("Detalles del error:", error.response.data);
 		}
 	}
 });

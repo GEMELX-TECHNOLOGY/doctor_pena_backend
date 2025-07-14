@@ -1,5 +1,17 @@
 const { query } = require("../config/db.sql");
 
+const validTypes = [
+  "receta",
+  "estudio",
+  "informe",
+  "constancia",
+  "referencia",
+  "vacuna",
+  "consentimiento",
+  "seguimiento",
+  "otro"
+];
+
 // Subir un nuevo documento a Cloudinary
 exports.uploadDocument = async (req, res) => {
 	try {
@@ -8,6 +20,10 @@ exports.uploadDocument = async (req, res) => {
 
 		if (!file_path) {
 			return res.status(400).json({ error: "Archivo no proporcionado" });
+		}
+
+		if (!validTypes.includes(type)) {
+			return res.status(400).json({ error: "Tipo de documento no válido" });
 		}
 
 		// Obtener id paciente a partir de registration_number
@@ -41,7 +57,7 @@ exports.uploadDocument = async (req, res) => {
 	}
 };
 
-// Obtener documentos por paciente usando registration_number
+// Obtener documentos por paciente
 exports.getByPatient = async (req, res) => {
 	try {
 		const registration_number = req.params.registration_number;
@@ -66,7 +82,36 @@ exports.getByPatient = async (req, res) => {
 	}
 };
 
-// Eliminar un documento por id
+// Obtener documentos por tipo
+exports.getDocumentsByType = async (req, res) => {
+	try {
+		const { registration_number, type } = req.params;
+
+		if (!validTypes.includes(type)) {
+			return res.status(400).json({ error: "Tipo de documento no válido" });
+		}
+
+		const [docs] = await query(
+			`SELECT D.* FROM Documents D
+			 JOIN Patients P ON D.patient_id = P.id
+			 WHERE P.registration_number = ? AND D.type = ?
+			 ORDER BY D.date DESC`,
+			[registration_number, type],
+		);
+
+		res.json({
+			success: true,
+			documents: docs,
+		});
+	} catch (error) {
+		console.error("Error al obtener documentos por tipo:", error);
+		res.status(500).json({
+			error: "Error al obtener los documentos por tipo",
+		});
+	}
+};
+
+// Eliminar documento
 exports.deleteDocument = async (req, res) => {
 	try {
 		const { id } = req.params;
@@ -117,7 +162,7 @@ exports.viewAndMarkAsRead = async (req, res) => {
 	}
 };
 
-// Obtener documentos leídos por registration_number
+// Obtener documentos leídos por paciente
 exports.getReadDocuments = async (req, res) => {
 	try {
 		const registration_number = req.params.registration_number;
@@ -142,7 +187,7 @@ exports.getReadDocuments = async (req, res) => {
 	}
 };
 
-// Obtener documentos pendientes por registration_number
+// Obtener documentos pendientes por paciente
 exports.getPendingDocuments = async (req, res) => {
 	try {
 		const registration_number = req.params.registration_number;
