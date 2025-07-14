@@ -93,8 +93,9 @@ const analizarSignosVitales = ({ heart_rate, oxygenation, temperature }) => {
 	return "normal";
 };
 // Ruta POST para pulcera
-router.post("/upload", authenticateWearable, async (req, res) => {
-	const registration_number = req.user.registration_number;
+router.post("/upload", async (req, res) => {
+ 
+	const registration_number = req.body.registration_number;
 	const { heart_rate, oxygenation, temperature } = req.body;
 
 	console.log(" Datos recibidos:", {

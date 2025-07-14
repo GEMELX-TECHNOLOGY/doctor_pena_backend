@@ -2,54 +2,58 @@ const { query } = require("../config/db.sql");
 
 // Registrar un nuevo producto
 exports.createProduct = async (req, res) => {
-	try {
-		const {
-			barcode,
-			name,
-			description,
-			formula_salt,
-			type,
-			price,
-			stock,
-			minimum_stock,
-			location,
-			expiration,
-			supplier,
-			image,
-		} = req.body;
+  try {
+    const {
+      barcode,
+      name,
+      description,
+      formula_salt,
+      type,
+      price,
+      stock,
+      minimum_stock,
+      location,
+      expiration,
+      supplier,
+      
+    } = req.body;
 
-		// Insertar el nuevo producto en la base de datos
-		await query(
-			`INSERT INTO Products 
+    // La URL pública de la imagen subida en Cloudinary
+    const imageUrl = req.file?.path || null;
+
+    await query(
+      `INSERT INTO Products 
       (barcode, name, description, formula_salt, type, price, stock, minimum_stock, location, expiration, supplier, image)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			[
-				barcode,
-				name,
-				description,
-				formula_salt,
-				type,
-				price,
-				stock,
-				minimum_stock,
-				location,
-				expiration,
-				supplier,
-				image,
-			],
-		);
+      [
+        barcode,
+        name,
+        description,
+        formula_salt,
+        type,
+        price,
+        stock,
+        minimum_stock,
+        location,
+        expiration,
+        supplier,
+        imageUrl,
+      ],
+    );
 
-		res.status(201).json({
-			success: true,
-			message: "Producto registrado exitosamente",
-		});
-	} catch (error) {
-		console.error("Error al registrar producto:", error);
-		res.status(500).json({
-			error: "Error al registrar el producto",
-		});
-	}
+    res.status(201).json({
+      success: true,
+      message: "Producto registrado exitosamente",
+      imageUrl,
+    });
+  } catch (error) {
+    console.error("Error al registrar producto:", error);
+    res.status(500).json({
+      error: "Error al registrar el producto",
+    });
+  }
 };
+
 
 // Obtener todos los productos
 exports.getAllProducts = async (_req, res) => {

@@ -98,6 +98,7 @@ exports.createAppointment = async (req, res) => {
 exports.updateAppointment = async (req, res) => {
 	try {
 		const { date_time, reason, status, notes } = req.body;
+
 		const [currentAppointment] = await query(
 			"SELECT * FROM Appointments WHERE id = ?",
 			[req.params.id],
@@ -130,49 +131,55 @@ exports.updateAppointment = async (req, res) => {
 		);
 
 		const [patientData] = await query(
-			`SELECT first_name, last_name, usuario_id FROM Patients WHERE id = ?`,
+			`SELECT first_name, last_name, user_id FROM Patients WHERE id = ?`,
 			[appointment.patient_id],
 		);
 
 		const patientName =
 			patientData.length > 0
 				? `${patientData[0].first_name} ${patientData[0].last_name}`
-				: "Patient";
+				: "Paciente";
 
-		const patientUserId = patientData[0]?.usuario_id;
+		const patientUserId = patientData[0]?.user_id;
 		const newDate = date_time || appointment.date_time;
-
 		const alertDate = getCurrentDateTime();
 
+		// Notificación al paciente (si tiene user_id)
 		if (patientUserId) {
 			await query(
 				`INSERT INTO Alerts (type, recipient_id, message, date, is_read) VALUES ('cita', ?, ?, ?, 0)`,
 				[
 					patientUserId,
-					`Your appointment has been ${newStatus === "reprogramada" ? "rescheduled" : "updated"}: ${newDate}`,
+					`Tu cita ha sido ${
+						newStatus === "reprogramada" ? "reprogramada" : "actualizada"
+					}: ${newDate}`,
 					alertDate,
 				],
 			);
 		}
 
+		// Notificación al doctor
 		await query(
 			`INSERT INTO Alerts (type, recipient_id, message, date, is_read) VALUES ('cita', ?, ?, ?, 0)`,
 			[
 				DEFAULT_DOCTOR_ID,
-				`Appointment ${newStatus === "reprogramada" ? "rescheduled" : "updated"} with ${patientName} for ${newDate}`,
+				`Cita ${
+					newStatus === "reprogramada" ? "reprogramada" : "actualizada"
+				} con ${patientName} para el ${newDate}`,
 				alertDate,
 			],
 		);
 
 		res.json({
 			success: true,
-			message: `Appointment ${newStatus} and alerts sent successfully`,
+			message: `Cita ${newStatus} y alertas enviadas correctamente`,
 		});
 	} catch (err) {
 		console.error("Error actualizando cita:", err);
 		res.status(500).json({ error: "Error actualizando cita" });
 	}
 };
+
 
 // Cancelar cita
 exports.cancelAppointment = async (req, res) => {

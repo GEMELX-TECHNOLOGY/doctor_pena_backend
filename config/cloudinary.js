@@ -31,8 +31,17 @@ const profileStorage = new CloudinaryStorage({
 			`${Date.now()}-${path.parse(file.originalname).name}`,
 	},
 });
+const productImageStorage = new CloudinaryStorage({
+  cloudinary,
+  params: {
+    folder: "product_images",
+    allowed_formats: ["jpg", "png", "jpeg"],
+    public_id: (_req, file) => `${Date.now()}-${path.parse(file.originalname).name}`,
+  },
+});
 
 const uploadDocuments = multer({ storage: documentsStorage });
 const uploadProfile = multer({ storage: profileStorage });
+const uploadProductImage = multer({ storage: productImageStorage });
 
-module.exports = { cloudinary, uploadDocuments, uploadProfile };
+module.exports = { cloudinary, uploadDocuments, uploadProfile,uploadProductImage };

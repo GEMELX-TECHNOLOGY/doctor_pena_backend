@@ -1,10 +1,20 @@
 const { query } = require("../config/db.sql");
 
+// Obtener el ID del paciente a partir de su registration_number
+async function getPatientIdByRegistrationNumber(registration_number) {
+	const [rows] = await query(
+		"SELECT id FROM Patients WHERE registration_number = ?",
+		[registration_number]
+	);
+	if (rows.length === 0) return null;
+	return rows[0].id;
+}
+
 // Crear una nueva consulta médica
 exports.createConsultation = async (req, res) => {
 	try {
 		const {
-			patient_id,
+			registration_number,
 			date,
 			symptoms,
 			diagnosis,
@@ -13,19 +23,16 @@ exports.createConsultation = async (req, res) => {
 			paid = 0,
 		} = req.body;
 
-		// Verificar que el paciente exista
-		const [patientRes] = await query("SELECT id FROM Patients WHERE id = ?", [
-			patient_id,
-		]);
-		if (patientRes.length === 0) {
+		const patient_id = await getPatientIdByRegistrationNumber(registration_number);
+
+		if (!patient_id) {
 			return res.status(400).json({ error: "Paciente no encontrado" });
 		}
 
-		// Insertar la nueva consulta en la base de datos
 		await query(
 			`INSERT INTO Consultations (patient_id, date, symptoms, diagnosis, treatment, private_notes, paid)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			[patient_id, date, symptoms, diagnosis, treatment, private_notes, paid],
+			[patient_id, date, symptoms, diagnosis, treatment, private_notes, paid]
 		);
 
 		res
@@ -74,7 +81,7 @@ exports.getConsultationById = async (req, res) => {
       JOIN Patients p ON c.patient_id = p.id
       WHERE c.id = ?
     `,
-			[req.params.id],
+			[req.params.id]
 		);
 
 		if (rows.length === 0)
@@ -83,6 +90,41 @@ exports.getConsultationById = async (req, res) => {
 	} catch (err) {
 		console.error("Error al obtener consulta:", err);
 		res.status(500).json({ error: "Error al obtener la consulta" });
+	}
+};
+
+// Obtener consultas por paciente (usando registration_number)
+exports.getConsultationsByPatient = async (req, res) => {
+	try {
+		const registrationNumber = req.params.registration_number;
+
+		const patient_id = await getPatientIdByRegistrationNumber(registrationNumber);
+		if (!patient_id) {
+			return res.status(404).json({ error: "Paciente no encontrado" });
+		}
+
+		const [rows] = await query(
+			`
+      SELECT 
+        c.id, c.date, c.symptoms, c.diagnosis, c.treatment, c.paid,
+        p.registration_number,
+        p.first_name AS paciente_nombre, 
+        p.last_name AS paciente_apellido, 
+        TIMESTAMPDIFF(YEAR, p.birth_date, CURDATE()) AS paciente_edad
+      FROM Consultations c
+      JOIN Patients p ON c.patient_id = p.id
+      WHERE c.patient_id = ?
+      ORDER BY c.date DESC
+    `,
+			[patient_id]
+		);
+
+		res.json({ success: true, consultations: rows });
+	} catch (err) {
+		console.error("Error al obtener consultas del paciente:", err);
+		res
+			.status(500)
+			.json({ error: "Error al obtener las consultas del paciente" });
 	}
 };
 
@@ -103,7 +145,7 @@ exports.updateConsultation = async (req, res) => {
 				private_notes,
 				paid,
 				req.params.id,
-			],
+			]
 		);
 		if (result.affectedRows === 0)
 			return res.status(404).json({ error: "Consulta no encontrada" });
@@ -129,36 +171,6 @@ exports.deleteConsultation = async (req, res) => {
 	}
 };
 
-// Obtener consultas por paciente
-exports.getConsultationsByPatient = async (req, res) => {
-	try {
-		const patientId = req.params.id;
-
-		const [rows] = await query(
-			`
-      SELECT 
-        c.id, c.date, c.symptoms, c.diagnosis, c.treatment, c.paid,
-        p.registration_number,
-        p.first_name AS paciente_nombre, 
-        p.last_name AS paciente_apellido, 
-        TIMESTAMPDIFF(YEAR, p.birth_date, CURDATE()) AS paciente_edad
-      FROM Consultations c
-      JOIN Patients p ON c.patient_id = p.id
-      WHERE c.patient_id = ?
-      ORDER BY c.date DESC
-    `,
-			[patientId],
-		);
-
-		res.json({ success: true, consultations: rows });
-	} catch (err) {
-		console.error("Error al obtener consultas del paciente:", err);
-		res
-			.status(500)
-			.json({ error: "Error al obtener las consultas del paciente" });
-	}
-};
-
 // Marcar consulta como pagada
 exports.markAsPaid = async (req, res) => {
 	try {
@@ -166,7 +178,7 @@ exports.markAsPaid = async (req, res) => {
 
 		const [result] = await query(
 			`UPDATE Consultations SET paid = 1 WHERE id = ?`,
-			[consultationId],
+			[consultationId]
 		);
 
 		if (result.affectedRows === 0) {

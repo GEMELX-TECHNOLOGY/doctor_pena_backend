@@ -3,16 +3,28 @@ const { query } = require("../config/db.sql");
 // Subir un nuevo documento a Cloudinary
 exports.uploadDocument = async (req, res) => {
 	try {
-		const { patient_id, title, description, type, notes, status } = req.body;
+		const { registration_number, title, description, type, notes, status } = req.body;
 		const file_path = req.file?.path;
 
 		if (!file_path) {
 			return res.status(400).json({ error: "Archivo no proporcionado" });
 		}
 
+		// Obtener id paciente a partir de registration_number
+		const [patients] = await query(
+			"SELECT id FROM Patients WHERE registration_number = ?",
+			[registration_number]
+		);
+
+		if (patients.length === 0) {
+			return res.status(404).json({ error: "Paciente no encontrado" });
+		}
+
+		const patient_id = patients[0].id;
+
 		await query(
 			`INSERT INTO Documents (patient_id, title, description, type, file_path, notes, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			[patient_id, title, description, type, file_path, notes, status],
 		);
 
@@ -29,16 +41,17 @@ exports.uploadDocument = async (req, res) => {
 	}
 };
 
-// Obtener documentos por paciente
+// Obtener documentos por paciente usando registration_number
 exports.getByPatient = async (req, res) => {
 	try {
-		const patientId = req.params.id;
+		const registration_number = req.params.registration_number;
 
 		const [docs] = await query(
-			`SELECT * FROM Documents 
-       WHERE patient_id = ? 
-       ORDER BY date DESC`,
-			[patientId],
+			`SELECT D.* FROM Documents D
+			 JOIN Patients P ON D.patient_id = P.id
+			 WHERE P.registration_number = ?
+			 ORDER BY D.date DESC`,
+			[registration_number],
 		);
 
 		res.json({
@@ -53,7 +66,7 @@ exports.getByPatient = async (req, res) => {
 	}
 };
 
-// Eliminar un documento
+// Eliminar un documento por id
 exports.deleteDocument = async (req, res) => {
 	try {
 		const { id } = req.params;
@@ -72,7 +85,7 @@ exports.deleteDocument = async (req, res) => {
 	}
 };
 
-// Ver documento y marcarlo como leído
+// Ver documento por id y marcar como leído
 exports.viewAndMarkAsRead = async (req, res) => {
 	try {
 		const { id } = req.params;
@@ -103,15 +116,18 @@ exports.viewAndMarkAsRead = async (req, res) => {
 		});
 	}
 };
+
+// Obtener documentos leídos por registration_number
 exports.getReadDocuments = async (req, res) => {
 	try {
-		const patientId = req.params.id;
+		const registration_number = req.params.registration_number;
 
 		const [docs] = await query(
-			`SELECT * FROM Documents 
-       WHERE patient_id = ? AND status = 'leido' 
-       ORDER BY date DESC`,
-			[patientId],
+			`SELECT D.* FROM Documents D
+			 JOIN Patients P ON D.patient_id = P.id
+			 WHERE P.registration_number = ? AND D.status = 'leido'
+			 ORDER BY D.date DESC`,
+			[registration_number],
 		);
 
 		res.json({
@@ -125,15 +141,18 @@ exports.getReadDocuments = async (req, res) => {
 		});
 	}
 };
+
+// Obtener documentos pendientes por registration_number
 exports.getPendingDocuments = async (req, res) => {
 	try {
-		const patientId = req.params.id;
+		const registration_number = req.params.registration_number;
 
 		const [docs] = await query(
-			`SELECT * FROM Documents 
-       WHERE patient_id = ? AND status = 'pendiente' 
-       ORDER BY date DESC`,
-			[patientId],
+			`SELECT D.* FROM Documents D
+			 JOIN Patients P ON D.patient_id = P.id
+			 WHERE P.registration_number = ? AND D.status = 'pendiente'
+			 ORDER BY D.date DESC`,
+			[registration_number],
 		);
 
 		res.json({
@@ -147,6 +166,8 @@ exports.getPendingDocuments = async (req, res) => {
 		});
 	}
 };
+
+// Obtener todos los documentos leídos (global)
 exports.getAllReadDocuments = async (_req, res) => {
 	try {
 		const [docs] = await query(`
@@ -168,4 +189,3 @@ exports.getAllReadDocuments = async (_req, res) => {
 		});
 	}
 };
-//exports.getAllPendingDocuments = async (req, res) => {
