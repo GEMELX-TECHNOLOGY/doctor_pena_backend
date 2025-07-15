@@ -140,80 +140,70 @@ async function registerUser(req, res, allowedRoles) {
 exports.registerWeb = (req, res) => registerUser(req, res, webRoles);
 exports.registerApp = (req, res) => registerUser(req, res, appRoles);
 
+
+
 exports.login = async (req, res) => {
 	try {
 		const { email, password } = req.body;
 
-		// 1. Buscar usuario por email
 		const [users] = await query("SELECT * FROM Users WHERE email = ?", [email]);
-
 		const user = users[0];
 
 		if (!user) {
-			return res
-				.status(401)
-				.json({ error: "Correo electrónico o contraseña incorrectos" });
+			return res.status(401).json({ error: "Correo o contraseña incorrectos" });
 		}
 
-		// 2. Verificar contraseña
 		const passwordMatch = await bcrypt.compare(password, user.password_hash);
-
 		if (!passwordMatch) {
-			return res
-				.status(401)
-				.json({ error: "Correo electrónico o contraseña incorrectos" });
+			return res.status(401).json({ error: "Correo o contraseña incorrectos" });
 		}
 
-		// 3. Actualizar último acceso
 		await query("UPDATE Users SET last_access = NOW() WHERE id = ?", [user.id]);
 
-		// 4. Preparar payload básico
-		const payload = {
-			userId: user.id,
-			role: user.role,
-		};
+		const payload = { userId: user.id, role: user.role };
 
-		// 5. Si es paciente, buscar registration_number
+		// Generar registration_number si aplica
 		if (user.role === "paciente") {
 			const [patients] = await query(
 				"SELECT registration_number FROM Patients WHERE user_id = ?",
-				[user.id],
+				[user.id]
 			);
-
-			if (patients.length > 0 && patients[0].registration_number) {
+			if (patients.length && patients[0].registration_number) {
 				payload.registration_number = patients[0].registration_number;
 			} else {
-				// Generar si no existe
 				const newRegNumber = await generateCustomId();
 				await query(
 					"UPDATE Patients SET registration_number = ? WHERE user_id = ?",
-					[newRegNumber, user.id],
+					[newRegNumber, user.id]
 				);
 				payload.registration_number = newRegNumber;
 			}
 		}
 
-		// 6. Generar token JWT
-		const token = jwt.sign(payload, process.env.JWT_SECRET, {
-			expiresIn: "1h",
+		const accessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+			expiresIn: "15m",
 		});
 
-		// Respuesta exitosa
+		const refreshToken = jwt.sign(payload, process.env.JWT_SECRET, {
+			expiresIn: "7d",
+		});
+
+		await query("INSERT INTO RefreshTokens (user_id, token) VALUES (?, ?)", [
+			user.id,
+			refreshToken,
+		]);
 
 		res.json({
-			token,
-			...(user.role === "paciente" && payload.registration_number
-				? { registration_number: payload.registration_number }
-				: {}),
+			access_token: accessToken,
+			refresh_token: refreshToken,
+			...(user.role === "paciente" ? { registration_number: payload.registration_number } : {}),
 		});
 	} catch (error) {
-		console.error("Error en inicio de sesión:", error);
-		res.status(500).json({
-			error: "Error interno del servidor al iniciar sesión",
-			details: error.message,
-		});
+		console.error("Error en login:", error);
+		res.status(500).json({ error: "Error interno del servidor", detail: error.message });
 	}
 };
+
 
 // Función para solicitar recuperación de contraseña
 // forgotPassword
@@ -780,5 +770,21 @@ exports.getPatientFullInfo = async (req, res) => {
 			detail:
 				process.env.NODE_ENV === "development" ? error.message : undefined,
 		});
+	}
+};
+exports.revokeRefreshToken = async (req, res) => {
+	try {
+		const { refresh_token } = req.body;
+
+		if (!refresh_token) {
+			return res.status(400).json({ error: "Se requiere el refresh token" });
+		}
+
+		await query("DELETE FROM RefreshTokens WHERE token = ?", [refresh_token]);
+
+		res.json({ success: true, message: "Token revocado exitosamente" });
+	} catch (error) {
+		console.error("Error al revocar token:", error);
+		res.status(500).json({ error: "Error al revocar refresh token" });
 	}
 };

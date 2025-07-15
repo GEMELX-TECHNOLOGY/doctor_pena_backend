@@ -41,4 +41,7 @@ router.get(
 	verifyAndRenewToken,
 	controller.getPatientFullInfo,
 );
+
+router.post("/revoke-token",controller.revokeRefreshToken);
+
 module.exports = router;
