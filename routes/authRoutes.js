@@ -28,7 +28,7 @@ router.delete(
 );
 
 // Refresh token
-router.post("/refresh-token", controller.refreshToken);
+router.get("/refresh-token", controller.refreshToken);
 router.put(
 	"/admin/update-credentials",
 	verifyAndRenewToken,

@@ -291,7 +291,6 @@ exports.resetPassword = async (req, res) => {
 // Función para renovar token JWT
 exports.refreshToken = async (req, res) => {
 	try {
-		// Leer token desde la URL, por ejemplo: /refresh-token?token=xyz
 		const oldToken = req.query.token;
 
 		if (!oldToken) {
@@ -302,25 +301,36 @@ exports.refreshToken = async (req, res) => {
 			ignoreExpiration: true,
 		});
 
+		// Verifica si el token existe en la base (buena práctica)
+		const [validTokens] = await query(
+			"SELECT * FROM RefreshTokens WHERE token = ?",
+			[oldToken]
+		);
+		if (validTokens.length === 0) {
+			return res
+				.status(401)
+				.json({ error: "Token no registrado o ya revocado" });
+		}
+
 		await query("UPDATE Users SET last_access = NOW() WHERE id = ?", [
 			decoded.userId,
 		]);
 
-		const newToken = jwt.sign(
-			{ userId: decoded.userId, role: decoded.role },
-			process.env.JWT_SECRET,
-			{ expiresIn: "1h" },
-		);
+		const payload = { userId: decoded.userId, role: decoded.role };
+		const newAccessToken = jwt.sign(payload, process.env.JWT_SECRET, {
+			expiresIn: "15m",
+		});
 
 		res.json({
 			success: true,
-			token: newToken,
+			access_token: newAccessToken,
 		});
 	} catch (error) {
 		console.error("Error al renovar token:", error);
 		res.status(401).json({ error: "Token inválido o expirado" });
 	}
 };
+
 
 
 // Función para actualizar credenciales de administrador
