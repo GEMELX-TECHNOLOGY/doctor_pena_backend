@@ -2,52 +2,52 @@
 const { query } = require("../config/db.sql");
 
 
-// Registrar una nueva venta con múltiples productos
+const { v4: uuidv4 } = require("uuid"); 
+
 exports.createSale = async (req, res) => {
 	try {
 		const { patient_id, products } = req.body;
 
 		if (!Array.isArray(products) || products.length === 0) {
-			return res.status(400).json({ error: "Se requiere al menos un producto" });
+			return res.status(400).json({ error: "Debes agregar al menos un producto" });
 		}
 
-		for (const product of products) {
-			const { product_id, quantity } = product;
+		const sale_id = uuidv4(); // ID único para agrupar esta venta
 
-			// Verificar existencia y stock del producto
+		for (const { product_id, quantity } of products) {
 			const [productData] = await query(
 				"SELECT price, stock FROM Products WHERE id = ?",
 				[product_id]
 			);
+
 			if (productData.length === 0) {
-				return res.status(404).json({ error: `Producto con ID ${product_id} no encontrado` });
+				return res.status(404).json({ error: `Producto ${product_id} no encontrado` });
 			}
 
-			const foundProduct = productData[0];
-			if (foundProduct.stock < quantity) {
-				return res.status(400).json({ error: `Stock insuficiente para el producto con ID ${product_id}` });
+			const product = productData[0];
+
+			if (product.stock < quantity) {
+				return res.status(400).json({ error: `Stock insuficiente para producto ${product_id}` });
 			}
 
-			// Calcular total de la venta
-			const total = parseFloat(foundProduct.price) * quantity;
+			const total = parseFloat(product.price) * quantity;
 
-			// Registrar la venta
 			await query(
-				`INSERT INTO Sales (patient_id, product_id, quantity, unit_price, total)
-         VALUES (?, ?, ?, ?, ?)`,
-				[patient_id, product_id, quantity, foundProduct.price, total]
+				`INSERT INTO Sales (patient_id, product_id, quantity, unit_price, total, sale_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+				[patient_id, product_id, quantity, product.price, total, sale_id]
 			);
 
-			// Actualizar stock
-			await query(`UPDATE Products SET stock = stock - ? WHERE id = ?`, [
-				quantity,
-				product_id,
-			]);
+			await query(
+				`UPDATE Products SET stock = stock - ? WHERE id = ?`,
+				[quantity, product_id]
+			);
 		}
 
 		res.status(201).json({
 			success: true,
-			message: "Venta registrada exitosamente con múltiples productos",
+			message: "Venta registrada exitosamente",
+			sale_id,
 		});
 	} catch (error) {
 		console.error("Error al registrar venta:", error);
@@ -58,12 +58,13 @@ exports.createSale = async (req, res) => {
 };
 
 
+
 // Obtener todas las ventas
 exports.getAllSales = async (_req, res) => {
 	try {
 		const [sales] = await query(`
       SELECT 
-        S.id, S.patient_id, S.product_id, S.quantity, S.unit_price, S.total, S.date,
+        S.sale_id, S.date, S.patient_id, S.product_id, S.quantity, S.unit_price, S.total,
         P.name AS product_name,
         P.description AS product_description,
         P.price AS product_price,
@@ -76,44 +77,56 @@ exports.getAllSales = async (_req, res) => {
       FROM Sales S
       JOIN Products P ON S.product_id = P.id
       JOIN Patients Pa ON S.patient_id = Pa.id
+      ORDER BY S.date DESC
     `);
 
-		const cleanSales = sales.map((s) => ({
-			id: s.id,
-			patient: {
-				id: s.patient_id,
-				first_name: s.patient_first_name,
-				last_name: s.patient_last_name,
-			},
-			product: {
-				id: s.product_id,
-				name: s.product_name,
-				description: s.product_description,
-				price: s.product_price,
-				image: s.product_image,
-				formula: s.product_formula,
-				type: s.product_type,
-				barcode: s.product_barcode,
-			},
-			quantity: s.quantity,
-			unit_price: s.unit_price,
-			total: s.total,
-			date: s.date,
-		}));
+		// Agrupar por sale_id
+		const grouped = {};
+		for (const s of sales) {
+			if (!grouped[s.sale_id]) {
+				grouped[s.sale_id] = {
+					sale_id: s.sale_id,
+					date: s.date,
+					patient: {
+						id: s.patient_id,
+						first_name: s.patient_first_name,
+						last_name: s.patient_last_name,
+					},
+					productos: [],
+					total_venta: 0,
+				};
+			}
 
-		const total_sales = cleanSales.reduce(
-			(acc, sale) => acc + parseFloat(sale.total),
-			0,
-		);
+			grouped[s.sale_id].productos.push({
+				product: {
+					id: s.product_id,
+					name: s.product_name,
+					description: s.product_description,
+					price: s.product_price,
+					image: s.product_image,
+					formula: s.product_formula,
+					type: s.product_type,
+					barcode: s.product_barcode,
+				},
+				quantity: s.quantity,
+				unit_price: s.unit_price,
+				total: s.total,
+			});
+
+			grouped[s.sale_id].total_venta += parseFloat(s.total);
+		}
+
+		const ventas = Object.values(grouped);
+		const total_sales = ventas.reduce((acc, venta) => acc + venta.total_venta, 0);
 
 		res.json({
 			total_sales,
-			sales: cleanSales,
+			ventas,
 		});
 	} catch (error) {
-		console.error("Error al obtener ventas:", error);
+		console.error("Error al obtener ventas agrupadas:", error);
 		res.status(500).json({
-			error: "Error al obtener las ventas",
+			error: "Error al obtener las ventas agrupadas",
 		});
 	}
 };
