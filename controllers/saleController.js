@@ -1,46 +1,53 @@
 
-
-// Registrar una nueva venta
 const { query } = require("../config/db.sql");
 
-// Registrar una nueva venta
+
+// Registrar una nueva venta con múltiples productos
 exports.createSale = async (req, res) => {
 	try {
-		const { patient_id, product_id, quantity } = req.body;
+		const { patient_id, products } = req.body;
 
-		// Verificar existencia y stock del producto
-		const [productData] = await query(
-			"SELECT price, stock FROM Products WHERE id = ?",
-			[product_id],
-		);
-		if (productData.length === 0) {
-			return res.status(404).json({ error: "Producto no encontrado" });
+		if (!Array.isArray(products) || products.length === 0) {
+			return res.status(400).json({ error: "Se requiere al menos un producto" });
 		}
 
-		const product = productData[0];
-		if (product.stock < quantity) {
-			return res.status(400).json({ error: "Stock insuficiente" });
+		for (const product of products) {
+			const { product_id, quantity } = product;
+
+			// Verificar existencia y stock del producto
+			const [productData] = await query(
+				"SELECT price, stock FROM Products WHERE id = ?",
+				[product_id]
+			);
+			if (productData.length === 0) {
+				return res.status(404).json({ error: `Producto con ID ${product_id} no encontrado` });
+			}
+
+			const foundProduct = productData[0];
+			if (foundProduct.stock < quantity) {
+				return res.status(400).json({ error: `Stock insuficiente para el producto con ID ${product_id}` });
+			}
+
+			// Calcular total de la venta
+			const total = parseFloat(foundProduct.price) * quantity;
+
+			// Registrar la venta
+			await query(
+				`INSERT INTO Sales (patient_id, product_id, quantity, unit_price, total)
+         VALUES (?, ?, ?, ?, ?)`,
+				[patient_id, product_id, quantity, foundProduct.price, total]
+			);
+
+			// Actualizar stock
+			await query(`UPDATE Products SET stock = stock - ? WHERE id = ?`, [
+				quantity,
+				product_id,
+			]);
 		}
-
-		// Calcular total de la venta
-		const total = parseFloat(product.price) * quantity;
-
-		// Registrar la venta (sin prescription_id)
-		await query(
-			`INSERT INTO Sales (patient_id, product_id, quantity, unit_price, total)
-       VALUES (?, ?, ?, ?, ?)`,
-			[patient_id, product_id, quantity, product.price, total],
-		);
-
-		// Actualizar stock del producto
-		await query(`UPDATE Products SET stock = stock - ? WHERE id = ?`, [
-			quantity,
-			product_id,
-		]);
 
 		res.status(201).json({
 			success: true,
-			message: "Venta registrada exitosamente",
+			message: "Venta registrada exitosamente con múltiples productos",
 		});
 	} catch (error) {
 		console.error("Error al registrar venta:", error);
@@ -49,6 +56,7 @@ exports.createSale = async (req, res) => {
 		});
 	}
 };
+
 
 // Obtener todas las ventas
 exports.getAllSales = async (_req, res) => {
