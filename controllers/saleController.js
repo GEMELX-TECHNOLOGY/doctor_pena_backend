@@ -1,4 +1,4 @@
-const { query } = require("../config/db.sql");
+
 
 // Registrar una nueva venta
 const { query } = require("../config/db.sql");
