@@ -45,15 +45,19 @@ exports.registerPatientWeb = async (req, res) => {
 		const age = calculateAge(birth_date);
 		const registration_number = await generateCustomId();
 
-		// Usar el tipo enviado o calcular por edad/género si no se envía
-		let patient_type = patient_type_input || null;
+		// Asignar foto por defecto si no se envía
+		const photoToUse =
+			photo && photo.trim() !== ""
+				? photo
+				: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTOxYHstHPaqXtUZFjxrqn88O3mGfNcNXMlwQ&s";
 
+		// Validar o asignar tipo paciente
+		let patient_type = patient_type_input || null;
 		if (patient_type) {
 			if (!validPatientTypes.includes(patient_type)) {
 				return res.status(400).json({ error: "Tipo de paciente no válido" });
 			}
 		} else {
-			// Asignación automática si no se envió desde el frontend
 			if (age <= 2) patient_type = "bebe";
 			else if (age <= 12) patient_type = "nino";
 			else if (age >= 13 && age <= 17) patient_type = "adolescente";
@@ -62,7 +66,7 @@ exports.registerPatientWeb = async (req, res) => {
 			else patient_type = "adulto";
 		}
 
-		// Insertar datos básicos del paciente
+		// Insertar datos básicos del paciente, usando photoToUse
 		const [result] = await query(
 			`INSERT INTO Patients 
        (registration_number, first_name, last_name, gender, birth_date, blood_type, allergies, chronic_diseases, average_height, average_weight, patient_type, photo) 
@@ -79,7 +83,7 @@ exports.registerPatientWeb = async (req, res) => {
 				average_height,
 				average_weight,
 				patient_type,
-				photo,
+				photoToUse,
 			],
 		);
 
@@ -164,6 +168,7 @@ exports.registerPatientWeb = async (req, res) => {
 			registration_number,
 			age,
 			patient_type,
+			photo: photoToUse,
 		});
 	} catch (error) {
 		console.error("Error al registrar paciente:", error);
@@ -173,6 +178,7 @@ exports.registerPatientWeb = async (req, res) => {
 		});
 	}
 };
+
 
 // Obtener todos los pacientes
 exports.getAllPatients = async (_req, res) => {
