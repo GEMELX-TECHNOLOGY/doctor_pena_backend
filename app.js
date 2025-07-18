@@ -5,7 +5,7 @@ const cors = require("cors");
 const { connectMySQL } = require("./config/db.sql");
 const { generateAutomaticAlerts } = require("./utils/alertasAuto");
 
-// Routes (igual que antes)
+// Routes 
 const authRoutes = require("./routes/authRoutes");
 const patientRoutes = require("./routes/patientRoutes");
 const verifyAndRenewToken = require("./middlewares/authMiddleware");
@@ -34,7 +34,6 @@ app.use(express.json());
     await connectMySQL();
     console.log("✅ Connected to MySQL");
 
-    // Solo aquí llama a generateAutomaticAlerts, ya con conexión lista
     await generateAutomaticAlerts();
 
     // Levanta el servidor
@@ -59,7 +58,6 @@ app.use(express.json());
   }
 })();
 
-// Middlewares y rutas fuera del IIFE, pueden quedarse aquí
 app.use("/api/auth", authRoutes);
 app.use("/api/patients", verifyAndRenewToken, patientRoutes);
 app.use("/api/doctors", doctorRoutes);
