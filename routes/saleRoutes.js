@@ -11,5 +11,7 @@ router.get("/:id", controller.getSaleById);
 router.put("/update/:id", controller.updateSale);
 router.delete("/delete/:id", controller.deleteSale);
 router.get("/totals/monthly", controller.getMonthlyTotals);
+router.get("/group/:sale_id", controller.getSaleBySaleId);
+
 
 module.exports = router;

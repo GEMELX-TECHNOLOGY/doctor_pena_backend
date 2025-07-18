@@ -274,3 +274,70 @@ exports.getMonthlyTotals = async (_req, res) => {
 		});
 	}
 };
+exports.getSaleBySaleId = async (req, res) => {
+	try {
+		const { sale_id } = req.params;
+		const [sales] = await query(`
+			SELECT 
+				S.sale_id, S.date, S.patient_id, S.product_id, S.quantity, S.unit_price, S.total,
+				P.name AS product_name,
+				P.description AS product_description,
+				P.price AS product_price,
+				P.image AS product_image,
+				P.formula_salt AS product_formula,
+				P.type AS product_type,
+				P.barcode AS product_barcode,
+				Pa.first_name AS patient_first_name, 
+				Pa.last_name AS patient_last_name
+			FROM Sales S
+			JOIN Products P ON S.product_id = P.id
+			JOIN Patients Pa ON S.patient_id = Pa.id
+			WHERE S.sale_id = ?
+			ORDER BY S.date DESC
+		`, [sale_id]);
+
+		if (sales.length === 0) {
+			return res.status(404).json({ error: "Venta no encontrada para ese sale_id" });
+		}
+
+		// Agrupar los productos bajo el sale_id
+		const venta = {
+			sale_id: sales[0].sale_id,
+			date: sales[0].date,
+			patient: {
+				id: sales[0].patient_id,
+				first_name: sales[0].patient_first_name,
+				last_name: sales[0].patient_last_name,
+			},
+			productos: [],
+			total_venta: 0,
+		};
+
+		for (const s of sales) {
+			venta.productos.push({
+				product: {
+					id: s.product_id,
+					name: s.product_name,
+					description: s.product_description,
+					price: s.product_price,
+					image: s.product_image,
+					formula: s.product_formula,
+					type: s.product_type,
+					barcode: s.product_barcode,
+				},
+				quantity: s.quantity,
+				unit_price: s.unit_price,
+				total: s.total,
+			});
+
+			venta.total_venta += parseFloat(s.total);
+		}
+
+		res.json(venta);
+	} catch (error) {
+		console.error("Error al obtener venta por sale_id:", error);
+		res.status(500).json({
+			error: "Error interno del servidor",
+		});
+	}
+};
