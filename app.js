@@ -13,7 +13,7 @@ const doctorRoutes = require("./routes/doctorRoutes");
 const consultationRoutes = require("./routes/consultationRoutes");
 const appointmentRoutes = require("./routes/appointmentRoutes");
 const vitalSignsRoutes = require("./routes/vitalSignsRoutes");
-
+const prescriptionRoutes = require("./routes/prescriptionRoutes");
 const vaccineRoutes = require("./routes/vaccineRoutes");
 const familyHistoryRoutes = require("./routes/familyHistoryRoutes");
 const historyRoutes = require("./routes/historyRoutes");
@@ -66,12 +66,11 @@ app.use("/api/doctors", doctorRoutes);
 app.use("/api/consultations", consultationRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/vital-signs", vitalSignsRoutes);
-
+app.use("/api/prescriptions", prescriptionRoutes);
 app.use("/api/vaccines", vaccineRoutes);
 app.use("/api/family-history", familyHistoryRoutes);
 app.use("/api/history", historyRoutes);
 app.use("/api/products", productRoutes);
-
 app.use("/api/documents", documentRoutes);
 app.use("/api/alerts", alertRoutes);
 app.use("/api/sales", saleRoutes);
