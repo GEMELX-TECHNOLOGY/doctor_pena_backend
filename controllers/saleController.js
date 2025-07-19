@@ -254,26 +254,44 @@ exports.deleteSale = async (req, res) => {
 };
 exports.getMonthlyTotals = async (_req, res) => {
 	try {
-		const [results] = await query(`
-      SELECT 
-        DATE_FORMAT(date, '%Y-%m') AS month,
-        SUM(total) AS total_sales
-      FROM Sales
-      GROUP BY month
-      ORDER BY month DESC
-    `);
+		const [monthlyResults] = await query(`
+			SELECT 
+				DATE_FORMAT(date, '%Y-%m') AS month,
+				SUM(total) AS total_sales
+			FROM Sales
+			GROUP BY month
+			ORDER BY month DESC
+		`);
+
+		const [weeklyResults] = await query(`
+			SELECT 
+				DATE_FORMAT(date, '%Y-%u') AS week,
+				MIN(DATE(date)) AS start_date,
+				MAX(DATE(date)) AS end_date,
+				SUM(total) AS total_sales
+			FROM Sales
+			WHERE YEARWEEK(date, 1) = YEARWEEK(CURDATE(), 1)
+			GROUP BY week
+		`);
 
 		res.json({
 			success: true,
-			monthly_totals: results,
+			monthly_totals: monthlyResults,
+			current_week_totals: weeklyResults[0] || {
+				week: null,
+				start_date: null,
+				end_date: null,
+				total_sales: 0,
+			},
 		});
 	} catch (error) {
-		console.error("Error al obtener totales mensuales:", error);
+		console.error("Error al obtener totales mensuales y semanales:", error);
 		res.status(500).json({
-			error: "Error al obtener los totales mensuales de ventas",
+			error: "Error al obtener los totales de ventas",
 		});
 	}
 };
+
 exports.getSaleBySaleId = async (req, res) => {
 	try {
 		const { sale_id } = req.params;
