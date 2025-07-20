@@ -12,5 +12,6 @@ router.put(
 	"/update/:registration_number",
 	controller.updatePatientByRegistrationNumber,
 );
+router.get("/medband/active", controller.getPatientsWithMedband);
 
 module.exports = router;

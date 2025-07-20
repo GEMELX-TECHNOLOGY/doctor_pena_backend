@@ -393,3 +393,20 @@ exports.updatePatientByRegistrationNumber = async (req, res) => {
 		res.status(500).json({ error: "Error al actualizar el paciente" });
 	}
 };
+// Obtener pacientes con MedBand activado
+exports.getPatientsWithMedband = async (_req, res) => {
+	try {
+		const [patients] = await query(
+			"SELECT first_name, last_name FROM Patients WHERE medband = true"
+		);
+
+		res.json({
+			success: true,
+			count: patients.length,
+			patients,
+		});
+	} catch (error) {
+		console.error("Error al obtener pacientes con MedBand:", error);
+		res.status(500).json({ error: "Error al obtener pacientes con MedBand" });
+	}
+};
