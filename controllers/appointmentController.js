@@ -1,6 +1,7 @@
 const { query } = require("../config/db.sql");
 const { calculateAge } = require("../utils/helpers");
-const { format } = require("date-fns");
+const { startOfDay, endOfDay, parseISO, isValid, formatISO, format } = require("date-fns");
+
 
 const DEFAULT_DOCTOR_ID = 1; // ID del Doctor
 
@@ -394,4 +395,54 @@ exports.getNextAppointmentByDoctor = async (_req, res) => {
 		console.error("Error al obtener próxima cita del doctor:", err);
 		res.status(500).json({ error: "Error al obtener próxima cita del doctor" });
 	}
+};
+
+
+
+// Obtener citas por fecha ( /appointments/by-date?date=2025-07-21)
+exports.getAppointmentsByDate = async (req, res) => {
+  try {
+    const { date } = req.query;
+
+    if (!date || !isValid(parseISO(date))) {
+      return res.status(400).json({ error: "Debes proporcionar una fecha (YYYY-MM-DD)" });
+    }
+
+    const startDate = startOfDay(parseISO(date));
+    const endDate = endOfDay(parseISO(date));
+
+    const formattedStart = formatISO(startDate, { representation: "complete" })
+      .slice(0, 19)
+      .replace("T", " ");
+    const formattedEnd = formatISO(endDate, { representation: "complete" })
+      .slice(0, 19)
+      .replace("T", " ");
+
+    const [appointments] = await query(
+      `SELECT A.id, A.date_time, A.reason, A.status, A.final_status,
+              P.first_name, P.last_name, P.registration_number
+       FROM Appointments A
+       JOIN Patients P ON A.patient_id = P.id
+       WHERE A.date_time BETWEEN ? AND ?
+       ORDER BY A.date_time ASC`,
+      [formattedStart, formattedEnd]
+    );
+
+    const result = appointments.map((appt) => ({
+      id: appt.id,
+      date_time: format(new Date(appt.date_time), "dd-MM-yyyy - hh:mm a"),
+      reason: appt.reason,
+      status: appt.status,
+      final_status: appt.final_status,
+      patient: {
+        name: `${appt.first_name} ${appt.last_name}`,
+        registration_number: appt.registration_number,
+      },
+    }));
+
+    res.json({ success: true, appointments: result });
+  } catch (err) {
+    console.error("Error obteniendo citas por fecha:", err);
+    res.status(500).json({ error: "Error al obtener citas por fecha" });
+  }
 };

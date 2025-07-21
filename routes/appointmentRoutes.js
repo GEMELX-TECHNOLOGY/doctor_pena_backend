@@ -22,4 +22,7 @@ router.get("/next/patient/:registration_number", controller.getNextAppointmentBy
 
 router.get("/next/doctor", controller.getNextAppointmentByDoctor);
 
+router.get("/by-date", controller.getAppointmentsByDate);
+
+
 module.exports = router;
