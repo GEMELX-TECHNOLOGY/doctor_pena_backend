@@ -12,6 +12,7 @@ router.get("/:registration_number/read", controller.getReadDocuments);
 router.get("/:registration_number/pending", controller.getPendingDocuments);
 router.get("/all/read", controller.getAllReadDocuments);
 router.get("/patient/:registration_number/type/:type", controller.getDocumentsByType);
+router.get("/analysis", controller.getAllPendingAnalisys)
 
 
 module.exports = router;
