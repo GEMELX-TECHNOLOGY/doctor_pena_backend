@@ -180,32 +180,63 @@ exports.registerPatientWeb = async (req, res) => {
 };
 
 
-// Obtener todos los pacientes
+// Obtener todos los pacientes con sus datos específicos
 exports.getAllPatients = async (_req, res) => {
 	try {
 		const [patients] = await query("SELECT * FROM Patients");
-		res.json({ success: true, patients });
+		const patientsWithDetails = [];
+
+		for (const patient of patients) {
+			const patientId = patient.id;
+			const patientType = patient.patient_type;
+			let typeData = null;
+
+			switch (patientType) {
+				case "bebe":
+					[[typeData]] = await query(
+						"SELECT * FROM BabyData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+				case "nino":
+					[[typeData]] = await query(
+						"SELECT * FROM ChildData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+				case "adolescente":
+					[[typeData]] = await query(
+						"SELECT * FROM AdolescentData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+				case "mujer_reproductiva":
+					[[typeData]] = await query(
+						"SELECT * FROM ReproductiveWomanData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+				case "adulto":
+					[[typeData]] = await query(
+						"SELECT * FROM AdultData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+			}
+
+			patientsWithDetails.push({
+				...patient,
+				type_data: typeData || null,
+			});
+		}
+
+		res.json({ success: true, patients: patientsWithDetails });
 	} catch (error) {
 		console.error("Error al obtener pacientes:", error);
 		res.status(500).json({ error: "Error al obtener los pacientes" });
 	}
 };
 
-// Eliminar paciente
-exports.deletePatient = async (req, res) => {
-	try {
-		const { id } = req.params;
-		await query("DELETE FROM Patients WHERE id = ?", [id]);
-
-		res.json({
-			success: true,
-			message: "Paciente eliminado exitosamente",
-		});
-	} catch (error) {
-		console.error("Error al eliminar paciente:", error);
-		res.status(500).json({ error: "Error al eliminar el paciente" });
-	}
-};
 exports.getPatientByRegistrationNumber = async (req, res) => {
 	try {
 		const { registration_number } = req.params;
@@ -394,19 +425,69 @@ exports.updatePatientByRegistrationNumber = async (req, res) => {
 	}
 };
 // Obtener pacientes con MedBand activado
+
 exports.getPatientsWithMedband = async (_req, res) => {
 	try {
 		const [patients] = await query(
-			"SELECT first_name, last_name FROM Patients WHERE medband = true"
+			"SELECT * FROM Patients WHERE medband = true"
 		);
+
+		const patientsWithDetails = [];
+
+		for (const patient of patients) {
+			const patientId = patient.id;
+			const patientType = patient.patient_type;
+			let typeData = null;
+
+			switch (patientType) {
+				case "bebe":
+					[[typeData]] = await query(
+						"SELECT * FROM BabyData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+				case "nino":
+					[[typeData]] = await query(
+						"SELECT * FROM ChildData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+				case "adolescente":
+					[[typeData]] = await query(
+						"SELECT * FROM AdolescentData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+				case "mujer_reproductiva":
+					[[typeData]] = await query(
+						"SELECT * FROM ReproductiveWomanData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+				case "adulto":
+					[[typeData]] = await query(
+						"SELECT * FROM AdultData WHERE patient_id = ?",
+						[patientId],
+					);
+					break;
+			}
+
+			patientsWithDetails.push({
+				first_name: patient.first_name,
+				last_name: patient.last_name,
+				patient_type: patientType,
+				type_data: typeData || null,
+			});
+		}
 
 		res.json({
 			success: true,
-			count: patients.length,
-			patients,
+			count: patientsWithDetails.length,
+			patients: patientsWithDetails,
 		});
 	} catch (error) {
 		console.error("Error al obtener pacientes con MedBand:", error);
 		res.status(500).json({ error: "Error al obtener pacientes con MedBand" });
 	}
 };
+
