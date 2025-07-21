@@ -5,7 +5,7 @@ const cors = require("cors");
 const { connectMySQL } = require("./config/db.sql");
 const { generateAutomaticAlerts } = require("./utils/alertasAuto");
 
-// Routes 
+// Routes
 const authRoutes = require("./routes/authRoutes");
 const patientRoutes = require("./routes/patientRoutes");
 const verifyAndRenewToken = require("./middlewares/authMiddleware");
@@ -38,7 +38,7 @@ app.use(express.json());
 
     // Levanta el servidor
     const PORT = process.env.PORT || 3000;
-    app.listen(PORT, () => {
+    app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
 
