@@ -91,21 +91,19 @@ router.post("/upload", async (req, res) => {
 
     const riesgo = analizarSignosVitales({ heart_rate, oxygenation, temperature });
 
-    let mensajeIA = null;
-    if (riesgo !== "normal") {
-      const [alertasPrevias] = await mysql.query(
-        "SELECT message FROM Alerts WHERE recipient_id = ? ORDER BY date DESC LIMIT 5",
-        [paciente.user_id]
-      );
+    // Generar mensaje IA incluso sin riesgo
+    const [alertasPrevias] = await mysql.query(
+      "SELECT message FROM Alerts WHERE recipient_id = ? ORDER BY date DESC LIMIT 5",
+      [paciente.user_id]
+    );
 
-      const historial = alertasPrevias.map((a) => a.message).join("\n") || "Sin historial previo.";
-      mensajeIA = await generarMensajePersonalizado(historial, { heart_rate, oxygenation, temperature });
+    const historial = alertasPrevias.map((a) => a.message).join("\n") || "Sin historial previo.";
+    const mensajeIA = await generarMensajePersonalizado(historial, { heart_rate, oxygenation, temperature });
 
-      await mysql.query(
-        "INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)",
-        ["ia", paciente.user_id, mensajeIA || `Riesgo detectado: ${riesgo}`]
-      );
-    }
+    await mysql.query(
+      "INSERT INTO Alerts (type, recipient_id, message) VALUES (?, ?, ?)",
+      ["ia", paciente.user_id, mensajeIA || `Signos vitales en estado: ${riesgo}`]
+    );
 
     let isEmergency = false;
     if (temperature < 35 || temperature > 38.5 || heart_rate < 50 || heart_rate > 120 || oxygenation < 90) {
@@ -116,7 +114,7 @@ router.post("/upload", async (req, res) => {
       );
     }
 
-    // ✅ Guardar en Firestore incluyendo ia_message
+    // Guardar en Firestore incluyendo ia_message
     const newData = {
       patient_id: registration_number,
       heart_rate,
