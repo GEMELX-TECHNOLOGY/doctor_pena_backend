@@ -4,7 +4,7 @@ const axios = require("axios");
 // Configuración
 const MQTT_BROKER_URL = "mqtt://broker.emqx.io";
 const MQTT_TOPIC = "MEDBAND";
-const BACKEND_URL = "http://localhost:3000/api/wearable/upload";
+const BACKEND_URL = "https://doctorpenabackend-production-8dd4.up.railway.app/api/wearable/upload";
 
 const client = mqtt.connect(MQTT_BROKER_URL);
 
