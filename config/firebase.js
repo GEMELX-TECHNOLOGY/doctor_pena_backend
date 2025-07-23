@@ -1,4 +1,5 @@
 const admin = require("firebase-admin");
+const { Firestore } = require("@google-cloud/firestore");
 
 const serviceAccount = {
 	type: process.env.FIREBASE_TYPE,
@@ -18,8 +19,11 @@ try {
 	admin.initializeApp({
 		credential: admin.credential.cert(serviceAccount),
 	});
-	const db = admin.firestore();
-	console.log("✅ Conectado a Firebase Firestore correctamente");
+
+	// Usar Firestore directamente con fallback REST
+	const db = new Firestore({ fallback: true });
+
+	console.log("✅ Conectado a Firebase Firestore correctamente (REST)");
 	module.exports = { admin, db };
 } catch (error) {
 	console.error("❌ Error al conectar a Firebase Firestore:", error);
